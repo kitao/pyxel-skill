@@ -4,11 +4,13 @@ A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill for buildi
 
 ## What is this?
 
-This skill teaches Claude Code how to create retro-style games using the Pyxel game engine. It covers Pyxel conventions, color palettes, sprite design, audio, and a visual-verification workflow powered by [pyxel-mcp](https://github.com/kitao/pyxel-mcp).
+This skill teaches Claude Code how to create retro-style games using the Pyxel game engine. It works together with [pyxel-mcp](https://github.com/kitao/pyxel-mcp), an MCP server that provides visual verification, audio rendering, and debugging tools.
 
 ## Prerequisites
 
-Install the pyxel-mcp MCP server. Add to your Claude Code MCP configuration (`~/.claude/.mcp.json`):
+Install the pyxel-mcp MCP server. The easiest way is to ask Claude Code to create a Pyxel game — it will automatically discover and set up pyxel-mcp from the [MCP Registry](https://modelcontextprotocol.io/).
+
+For manual setup, add to your MCP configuration:
 
 ```json
 {
