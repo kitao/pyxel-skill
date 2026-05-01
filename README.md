@@ -1,54 +1,66 @@
 # pyxel-skill
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill for building retro games with [Pyxel](https://github.com/kitao/pyxel).
+A [Claude Code](https://claude.com/claude-code) Skill that drives end-to-end production of playable, clearable, recognizable-sprite Pyxel games. Combines a phased workflow harness with topical knowledge files and an enforcement hook to prevent the agent from declaring "done" with placeholder garbage.
 
-## What is this?
+This skill assumes [`pyxel-mcp`](https://github.com/kitao/pyxel-mcp) is registered in your Claude Code MCP config — the skill orchestrates the workflow, while `pyxel-mcp` provides the verification verbs (run, capture, inspect, render audio).
 
-This skill teaches Claude Code how to create retro-style games using the Pyxel game engine. It works together with [pyxel-mcp](https://github.com/kitao/pyxel-mcp), an MCP server that provides visual verification, audio rendering, and debugging tools.
+## Status
 
-## Prerequisites
+v0.1.0 — initial release. Validation prompt: "make Donkey Kong". See `docs/retrospectives/` for actual run logs.
 
-Install the pyxel-mcp MCP server. The easiest way is to ask Claude Code to create a Pyxel game — it will automatically discover and set up pyxel-mcp from the [MCP Registry](https://modelcontextprotocol.io/).
+## Install
 
-For manual setup, add to your MCP configuration:
+1. Clone this repo:
 
-```json
-{
-  "mcpServers": {
-    "pyxel": {
-      "command": "uvx",
-      "args": ["pyxel-mcp"]
-    }
-  }
-}
-```
+   ```bash
+   git clone https://github.com/kitao/pyxel-skill.git
+   ```
 
-## Installation
+2. Symlink it into your Claude Code skills directory:
 
-Copy or symlink `SKILL.md` into your Claude Code skills directory:
+   ```bash
+   ln -s "$(pwd)/pyxel-skill" ~/.claude/skills/pyxel
+   ```
 
-```bash
-# Option 1: Symlink (auto-updates with git pull)
-ln -s /path/to/pyxel-skill/SKILL.md ~/.claude/skills/pyxel.md
+   (Or copy the directory if you prefer — symlink keeps you on the latest commit.)
 
-# Option 2: Copy
-cp /path/to/pyxel-skill/SKILL.md ~/.claude/skills/pyxel.md
-```
+3. Install the Stop hook (one-time per machine):
 
-## Usage
+   ```bash
+   ~/.claude/skills/pyxel/hooks/install.sh
+   ```
 
-Once installed, Claude Code will automatically activate this skill when you ask it to create Pyxel games. For example:
+   The hook is a non-blocking warning that fires at session end if the quality gate was skipped. It is idempotent.
 
-- "Make a simple shooting game with Pyxel"
-- "Create a retro platformer"
-- "Build an 8-bit puzzle game with chiptune music"
+4. Ensure `pyxel-mcp` is in your MCP config (`~/.claude/.mcp.json`):
 
-## Links
+   ```json
+   {
+     "mcpServers": {
+       "pyxel": { "command": "uvx", "args": ["pyxel-mcp"] }
+     }
+   }
+   ```
 
-- [Pyxel](https://github.com/kitao/pyxel) — The retro game engine
-- [pyxel-mcp](https://github.com/kitao/pyxel-mcp) — MCP server for AI-assisted Pyxel development
-- [anthropics/skills](https://github.com/anthropics/skills) — Claude Code community skills collection
+## Use
+
+Activate the skill by asking Claude Code to make a Pyxel game:
+
+> Make a Donkey Kong style platformer in Pyxel.
+
+The skill orchestrates a 7-stage pipeline (visual-target → decomposer → scaffold → asset-planner → asset-gen → task-execution → quality-gate). Persistent state files (`PLAN.md`, `STRUCTURE.md`, `ASSETS.md`, `MEMORY.md`) survive context compaction so long sessions can resume cleanly.
+
+## Repo layout
+
+See `docs/superpowers/specs/2026-05-01-pyxel-harness-design.md` §4.1 for the canonical layout description. In short:
+
+- `SKILL.md` — orchestrator
+- `visual-target.md`, `decomposer.md`, `scaffold.md`, `asset-planner.md`, `asset-gen.md`, `task-execution.md`, `quality-gate.md` — 7 pipeline stages
+- `quirks.md`, `test-harness.md`, `capture.md` — references loaded on demand by stages
+- `knowledge/` — topical knowledge (pixel-art, background, game-feel, audio, patterns)
+- `hooks/` — Stop hook + installer
+- `docs/` — design docs, runtime architecture, validation, compatibility matrix
 
 ## License
 
-MIT
+MIT. See `LICENSE`.
