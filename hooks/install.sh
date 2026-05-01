@@ -4,6 +4,9 @@
 # Idempotent: appends an entry to ~/.claude/settings.json's hooks.Stop list
 # referencing the absolute path of stop_check_bundle.py. Skips if the entry
 # already exists.
+#
+# Schema follows Claude Code's settings.json hook format:
+#   hooks.Stop = [ { hooks: [ { type: "command", command: <path>, timeout: 60 } ] } ]
 
 set -euo pipefail
 
@@ -32,21 +35,35 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check whether our hook is already installed.
-ALREADY_INSTALLED=$(jq -r --arg path "$HOOK_PATH" \
-    '(.hooks // {}) | (.Stop // []) | map(select(.command == $path)) | length' \
-    "$SETTINGS")
+# Check whether our hook is already installed (correct nested schema).
+ALREADY_INSTALLED=$(jq -r --arg path "$HOOK_PATH" '
+    (.hooks // {}) | (.Stop // [])
+    | map(.hooks // [] | map(select(.command == $path)) | length)
+    | add // 0
+' "$SETTINGS")
 
 if [[ "$ALREADY_INSTALLED" -gt 0 ]]; then
     echo "[pyxel-skill] hook already installed at: $HOOK_PATH"
     exit 0
 fi
 
-# Append the new hook entry.
+# Append the new hook entry using Claude Code's nested schema.
 TMP="$(mktemp)"
-jq --arg path "$HOOK_PATH" \
-    '.hooks //= {} | .hooks.Stop //= [] | .hooks.Stop += [{"command": $path}]' \
-    "$SETTINGS" > "$TMP"
+jq --arg path "$HOOK_PATH" '
+    .hooks //= {} |
+    .hooks.Stop //= [] |
+    .hooks.Stop += [
+        {
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": $path,
+                    "timeout": 60
+                }
+            ]
+        }
+    ]
+' "$SETTINGS" > "$TMP"
 mv "$TMP" "$SETTINGS"
 
 echo "[pyxel-skill] installed Stop hook: $HOOK_PATH"
