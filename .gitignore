@@ -1,1 +1,22 @@
-.claude/
+# pyxel-skill .gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python (for hooks/)
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Test / scratch
+*.log
+/tmp/
