@@ -97,14 +97,14 @@ ASSETS.md after Stage 4 must contain:
 - Hazard: `barrel_1`, `barrel_2` (16x16, paired-frame diff 5–50%).
 - HUD: `life_icon` (8x8).
 
-If `inspect_animation` reports a paired-frame diff outside 5–50% on any pair, gate check #4 FAILs.
+If `inspect_animation` (with `region_count=2`, `direction` matching the ASSETS.md bank layout) reports `region_diffs[0]["diff_ratio"]` outside 0.05–0.50 on any pair, gate check #4 FAILs.
 
 ## Quality gate expected output
 
 `screenshots/result/1/gate-report.json` should show:
 
-- `summary.pass` == 12, `summary.fail` == 0.
-- All 12 checks individually PASS per the `quality-gate.md` table.
+- `summary.pass` == 13, `summary.fail` == 0.
+- All 13 checks individually PASS per the `quality-gate.md` table (12 original + #13 tilemap trap).
 
 ## Out-of-scope for v0.1.0 DK
 
