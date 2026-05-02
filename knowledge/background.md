@@ -127,7 +127,7 @@ pyxel.text(x, y, s, 7)          # foreground
 
 ## Quality gate connection
 
-The quality gate (#11) requires `inspect_layout` to report H-balance ≥ 70% on the TITLE scene. For TITLE scenes that lack text (logo-only), the gate falls back to `inspect_screen` on a representative frame and asserts no quadrant is empty.
+The quality gate (#11) requires a `layout` snapshot inside `run` to report `h_balance ≥ 0.70` on the TITLE scene. For TITLE scenes that lack text (logo-only), the gate falls back to a `screen_grid` snapshot on a representative frame and asserts no quadrant of the returned `grid` is empty.
 
 ## Reference
 
