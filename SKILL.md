@@ -14,7 +14,8 @@ Build playable, clearable, recognizable-sprite Pyxel games via a phased pipeline
 This skill assumes `pyxel-mcp` ≥ 0.10.0 is installed and registered as an MCP server reachable at the namespace `pyxel`. On activation, before reading any stage file, verify:
 
 - `mcp__pyxel__pyxel_info` is callable.
-- `mcp__pyxel__validate_script` is callable.
+- `mcp__pyxel__validate` is callable.
+- `mcp__pyxel__run` is callable.
 
 If absent, run:
 
@@ -120,11 +121,11 @@ On entry, check (in order):
 These are the cheats this harness exists to catch. Do not commit any of them.
 
 1. **Visual primacy.** When code says X happened but a captured frame shows Y, trust the capture.
-2. **Trust media over code.** A passing `validate_script` and `run_and_capture` only certify the script does not crash. They do not certify gameplay.
+2. **Trust media over code.** A passing `validate` and a non-crashing `run` only certify the script does not crash. They do not certify gameplay.
 3. **No procedural fallback.** `pyxel.rect(x, y, 16, 16, 8)` in place of a declared sprite means asset-gen was skipped. Go back. The `pyxel.rect()` calls for player/enemy bodies are a red flag.
 4. **Bundle integrity.** A `screenshots/result/<N>/` bundle whose first 3 seconds are correct and the rest is static is FAIL, not partial pass.
 5. **Bias toward failure.** If behavior is not clearly visible in the capture, treat as not-done. Hidden or inferred behavior does not count.
-6. **Closed-loop input only.** Open-loop scripted input drifts past ~200 frames. Use `play_and_capture` with state observation between segments.
+6. **Closed-loop input only.** Open-loop scripted input drifts past ~200 frames. Issue `run` calls in segments per Pattern C (cumulative-replay), reading observed `state` snapshots between segments and recomputing the next input schedule from the actual position.
 7. **No "looks fine".** Every verify is a specific predicate against an observed value, not a vibe check.
 8. **No bundle, no done.** A `screenshots/result/<N>/` directory containing win-path.gif, lose-path.gif, frames, audio WAVs is the precondition for declaring "done". A green gate report without a bundle is FAIL.
 
