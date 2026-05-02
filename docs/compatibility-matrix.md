@@ -12,15 +12,16 @@ When a new pyxel-skill release is tagged, append a new row with the validated ve
 
 | pyxel-skill | pyxel-mcp | Pyxel engine | Python | Validated on  | Validation prompt | Notes                                                        |
 |-------------|-----------|--------------|--------|---------------|-------------------|--------------------------------------------------------------|
-| 0.1.0       | 0.9.3     | 2.8.7        | 3.14   | 2026-05-01    | DK                | Initial release. macOS Darwin 25.3.0 + uv 0.10.7 + Pyxel 2.8.7 in `.venv`. |
+| 0.1.0       | 0.9.3     | 2.8.7        | 3.12   | 2026-05-01    | DK                | Initial release. macOS Darwin 25.3.0 + uv 0.10.7 + Pyxel 2.8.7 in `.venv`. |
+| 0.2.0       | 0.10.0    | 2.9.4        | 3.12   | 2026-05-02    | DK                | 9-tool surface rewrite. Targets pyxel-mcp 0.10.0 (`run`, `validate`, four inspectors, audio, compare). macOS Darwin 25.3.0. |
 
 ## Floor / ceiling guidance
 
-- **pyxel-mcp floor:** 0.9.3 — required because earlier versions still carry the design knowledge in `instructions.md` that pyxel-skill v0.1.0+ migrated to `knowledge/`. Earlier pyxel-mcp versions still work as a tool host but pollute context.
+- **pyxel-mcp floor (pyxel-skill v0.2.0+):** 0.10.0 — required because v0.2.0 stage files target the 9-tool surface (`run`, `validate`, `inspect_image`, etc.). For pyxel-skill v0.1.x, the legacy floor `0.9.3` (16-tool surface) still applies.
 - **pyxel-mcp ceiling:** open. New versions are presumed compatible until proven otherwise.
-- **Pyxel engine floor:** 2.8.7 — earlier versions lack `pyxel.gen_bgm` (added 2.9.0 syntax change) and `pyxel.set_btnv` headless input (used by pyxel-mcp's `play_and_capture`).
+- **Pyxel engine floor (pyxel-skill v0.2.0+):** 2.9.4 — required by pyxel-mcp 0.10.0 (`set_btnv`, `pyxel.colors.append`, `pyxel.tilemaps[i].cls((0,0))`, `pyxel.flip()` for input ring, etc.). For pyxel-skill v0.1.x, the legacy floor `2.8.7` still applies.
 - **Pyxel engine ceiling:** open.
-- **Python floor:** 3.10 (uses `from __future__ import annotations` plus 3.10+ syntax in hooks; pyxel-mcp itself requires ≥3.10).
+- **Python floor:** 3.10 (uses `from __future__ import annotations` plus 3.10+ syntax in hooks; pyxel-mcp itself requires ≥3.10). The actual `.venv` runs Python 3.12.13.
 
 ## Reporting compatibility issues
 
