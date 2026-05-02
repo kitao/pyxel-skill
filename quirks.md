@@ -23,6 +23,18 @@ Keep this file small and high-signal. Each item below has bitten real implementa
   3 banks (0, 1, 2); more can be added but most games stay within
   the defaults.
 
+## Tilemap (0, 0) is the default "empty cell"
+
+- Pyxel initializes every cell of `pyxel.tilemaps[N]` to tile coord
+  `(0, 0)`. If the source image bank has visible content at its
+  (0, 0) tile, every "empty" cell of the tilemap renders that
+  content — typically a stair-step pattern of half-drawn sprites
+  across the screen, easy to miss on a small screenshot.
+- The fix: keep the source bank's (0, 0) tile fully transparent
+  (all palette index 0). `inspect_image(image=0, x=0, y=0, w=8, h=8)`
+  confirms this; `inspect_tilemap(...).trap_warning` flags
+  violations. `quality-gate.md` check #13 enforces it.
+
 ## Input simulation in headless mode
 
 - The MCP harness drives input through `pyxel.set_btn(key, frame)`
