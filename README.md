@@ -1,12 +1,34 @@
 # pyxel-skill
 
-A [Claude Code](https://claude.com/claude-code) Skill that drives end-to-end production of playable, clearable, recognizable-sprite Pyxel games. Combines a phased workflow harness with topical knowledge files and an enforcement hook to prevent the agent from declaring "done" with placeholder garbage.
+A [Claude Code](https://claude.com/claude-code) Skill that drives end-to-end production of **playable, clearable, recognizable-sprite** Pyxel games. Combines a phased workflow harness with topical knowledge files and an enforcement hook that prevents the agent from declaring "done" with placeholder garbage.
 
-This skill assumes [`pyxel-mcp`](https://github.com/kitao/pyxel-mcp) is registered in your Claude Code MCP config — the skill orchestrates the workflow, while `pyxel-mcp` provides the verification verbs (run, capture, inspect, render audio).
+This skill orchestrates the workflow; [`pyxel-mcp`](https://github.com/kitao/pyxel-mcp) (≥ 0.10.0) provides the verification verbs (`run`, `validate`, `inspect_*`, `render_audio`, `compare_frames`).
 
 ## Status
 
-v0.1.0 — initial release. Validation prompt: "make Donkey Kong". See `docs/retrospectives/` for actual run logs.
+`v0.2.0` — built on top of pyxel-mcp's 9-tool redesign (0.10.0). 7-stage pipeline; 13-check quality gate (15 in newer roadmap drafts). Donkey Kong is the canonical validation target — see `docs/validation/dk-reference.md`.
+
+## Pipeline
+
+```
+visual-target  →  decomposer  →  scaffold  →  asset-planner  →  asset-gen
+                                                                     ↓
+                                              quality-gate  ←  task-execution
+```
+
+Each stage writes / refines persistent state at project root (`PLAN.md`, `STRUCTURE.md`, `ASSETS.md`, `MEMORY.md`) so long sessions survive context compaction. Stage entry checks the existing files and resumes where you left off.
+
+The quality gate is the **single source of "done"**. It runs every sprite identity check, win-path playthrough, lose-path playthrough, audio render, and palette analysis; emits `screenshots/result/<N>/gate-report.json`. The agent cannot self-certify completion — only a clean gate passes.
+
+## Anti-shortcut enforcement
+
+Built-in guard rails (see `SKILL.md`'s "Anti-shortcut rules"):
+
+- **Visual primacy** — when code says X happened but the captured frame shows Y, the capture wins.
+- **No procedural fallback** — `pyxel.rect(x,y,16,16,8)` for a player body means asset-gen was skipped; gate FAILs.
+- **No "looks fine"** — every Verify is a specific predicate against an observed value.
+- **No bundle, no done** — `screenshots/result/<N>/` with win-path GIF, lose-path GIF, frame PNGs, audio WAVs is the precondition for declaring complete.
+- **No mid-attempt threshold relaxation** — quality-gate thresholds are committed before a run; changing them during a run is documented in gate-report.json and forces an automatic FAIL.
 
 ## Install
 
@@ -22,17 +44,15 @@ v0.1.0 — initial release. Validation prompt: "make Donkey Kong". See `docs/ret
    ln -s "$(pwd)/pyxel-skill" ~/.claude/skills/pyxel
    ```
 
-   (Or copy the directory if you prefer — symlink keeps you on the latest commit.)
-
 3. Install the Stop hook (one-time per machine):
 
    ```bash
    ~/.claude/skills/pyxel/hooks/install.sh
    ```
 
-   The hook is a non-blocking warning that fires at session end if the quality gate was skipped. It is idempotent.
+   Non-blocking warning at session end if the quality gate was skipped. Idempotent.
 
-4. Ensure `pyxel-mcp` is in your MCP config (`~/.claude/.mcp.json`):
+4. Ensure `pyxel-mcp ≥ 0.10.0` is in your MCP config:
 
    ```json
    {
@@ -44,22 +64,36 @@ v0.1.0 — initial release. Validation prompt: "make Donkey Kong". See `docs/ret
 
 ## Use
 
-Activate the skill by asking Claude Code to make a Pyxel game:
+Activate the skill by asking Claude Code:
 
 > Make a Donkey Kong style platformer in Pyxel.
 
-The skill orchestrates a 7-stage pipeline (visual-target → decomposer → scaffold → asset-planner → asset-gen → task-execution → quality-gate). Persistent state files (`PLAN.md`, `STRUCTURE.md`, `ASSETS.md`, `MEMORY.md`) survive context compaction so long sessions can resume cleanly.
+The skill walks the 7-stage pipeline, calls `pyxel-mcp` tools at each verification point, and produces a `screenshots/result/<N>/` proof bundle. A typical end-to-end run is hundreds of `run`/`inspect_*` calls — fast because pyxel-mcp's headless mode is sub-second per playthrough.
 
 ## Repo layout
 
-See `docs/superpowers/specs/2026-05-01-pyxel-harness-design.md` §4.1 for the canonical layout description. In short:
+```
+SKILL.md                    Pipeline orchestrator
+visual-target.md            Stage 1: art direction + Vision
+decomposer.md               Stage 2: PLAN.md (risks + milestones)
+scaffold.md                 Stage 3: STRUCTURE.md + main.py skeleton
+asset-planner.md            Stage 4: ASSETS.md sprite manifest
+asset-gen.md                Stage 5: hex-string sprites + per-sprite verify
+task-execution.md           Stage 6: gameplay implementation loop
+quality-gate.md             Stage 7: 13+ stop conditions + gate-report.json
+test-harness.md             (reference) win/lose path playthrough patterns
+capture.md                  (reference) proof-bundle production
+quirks.md                   (reference) Pyxel API gotchas
+knowledge/                  Topical: pixel-art, background, game-feel, audio, patterns
+hooks/                      Stop hook + idempotent installer
+docs/                       Architecture, validation references, compatibility matrix
+```
 
-- `SKILL.md` — orchestrator
-- `visual-target.md`, `decomposer.md`, `scaffold.md`, `asset-planner.md`, `asset-gen.md`, `task-execution.md`, `quality-gate.md` — 7 pipeline stages
-- `quirks.md`, `test-harness.md`, `capture.md` — references loaded on demand by stages
-- `knowledge/` — topical knowledge (pixel-art, background, game-feel, audio, patterns)
-- `hooks/` — Stop hook + installer
-- `docs/` — design docs, runtime architecture, validation, compatibility matrix
+## Compatibility
+
+| pyxel-skill | pyxel-mcp | Pyxel  | Python |
+|-------------|-----------|--------|--------|
+| 0.2.0       | ≥ 0.10.0  | ≥ 2.9.4| ≥ 3.10 |
 
 ## License
 
