@@ -2,6 +2,7 @@
 name: pyxel
 description: Build complete retro games with Pyxel through a verified, gated pipeline. TRIGGER when the user wants to make a Pyxel / retro / 8-bit / pixel-art game, or asks to recreate a classic arcade title. DO NOT TRIGGER on general Python work, on existing non-Pyxel projects, or when a different game engine (Pygame, Godot, Unity) is mentioned.
 license: MIT
+version: 0.2.0
 ---
 
 # pyxel — Retro Game Production Harness
@@ -10,7 +11,7 @@ Build playable, clearable, recognizable-sprite Pyxel games via a phased pipeline
 
 ## Required runtime
 
-This skill assumes `pyxel-mcp` ≥ 0.9.3 is installed and registered as an MCP server reachable at the namespace `pyxel`. On activation, before reading any stage file, verify:
+This skill assumes `pyxel-mcp` ≥ 0.10.0 is installed and registered as an MCP server reachable at the namespace `pyxel`. On activation, before reading any stage file, verify:
 
 - `mcp__pyxel__pyxel_info` is callable.
 - `mcp__pyxel__validate_script` is callable.
