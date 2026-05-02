@@ -20,7 +20,7 @@ A concise reference to the shipping shape of `pyxel-skill`. For design rationale
 | 2 | `decomposer.md` | `PLAN.md` (Risk Tasks + Main Build + Win/Lose milestones + Audio Manifest) |
 | 3 | `scaffold.md` | `STRUCTURE.md` Modules/Scenes/Tuning sections + skeleton `main.py` + `.pyxel-skill/` marker |
 | 4 | `asset-planner.md` | `ASSETS.md` sprite manifest with identity contracts |
-| 5 | `asset-gen.md` | `_build_assets()` populated; per-sprite verified via `inspect_sprite` / `inspect_animation` |
+| 5 | `asset-gen.md` | `_build_assets()` populated; per-sprite verified via `inspect_image` / `inspect_animation` |
 | 6 | `task-execution.md` | gameplay code; PLAN.md tasks marked done; MEMORY.md gotchas captured |
 | 7 | `quality-gate.md` | `screenshots/result/<N>/gate-report.json` with PASS/FAIL per check |
 
@@ -61,7 +61,7 @@ User brief
 [Stage 4] asset-planner  ──→  ASSETS.md (sprite manifest)
     ↓
 [Stage 5] asset-gen  ──→  main.py:_build_assets() (hex sprites)
-                     ──→  pyxel-mcp inspect_sprite / inspect_animation per sprite
+                     ──→  pyxel-mcp inspect_image / inspect_animation per sprite
     ↓
 [Stage 6] task-execution  ──→  main.py (gameplay)
                           ──→  MEMORY.md (gotchas)
@@ -85,10 +85,24 @@ These survive context compaction. Resume detection (in `SKILL.md`) inspects them
 
 ## Dependencies
 
-- **`pyxel-mcp`** ≥ 0.9.3 (PyPI), registered in `~/.claude/.mcp.json` under namespace `pyxel`. Provides verification verbs.
-- **`pyxel`** ≥ 2.8.7 (engine; pulled in by pyxel-mcp's dependencies).
+- **`pyxel-mcp`** ≥ 0.10.0 (PyPI), registered in `~/.claude/.mcp.json` under namespace `pyxel`. Provides the 9-tool verification surface (`run`, `validate`, `pyxel_info`, `inspect_palette`, `inspect_image`, `inspect_animation`, `inspect_tilemap`, `render_audio`, `compare_frames`).
+- **`pyxel`** ≥ 2.9.4 (engine; pulled in by pyxel-mcp's dependencies).
 - **Python** ≥ 3.10 (for the Stop hook).
 - **`jq`** (for `hooks/install.sh`).
+
+## pyxel-mcp tool surface (as of pyxel-mcp 0.10.0)
+
+| Tool | Purpose |
+|------|---------|
+| `run` | Dynamic execution: scheduled `inputs` + `snapshots` (screen_image, screen_grid, state, layout, video) + console assertions |
+| `validate` | Static analysis: 10 anti-pattern detectors |
+| `pyxel_info` | Discovery: versions, examples, MCP resource URIs |
+| `inspect_palette` | Static: 16-color hierarchy + WCAG contrast |
+| `inspect_image` | Static: image bank region pixels + color_count + fill_ratio |
+| `inspect_animation` | Static: cross-region Jaccard (palette / silhouette / per-pair diff) |
+| `inspect_tilemap` | Static: tilemap usage + (0,0)-trap detection |
+| `render_audio` | Audio: sound or music slot → WAV |
+| `compare_frames` | Offline: pixel diff between two PNGs |
 
 ## See also
 
