@@ -2,7 +2,11 @@
 
 Keep this file small and high-signal. Each item below has bitten real implementations and shows up as ambiguous bugs.
 
-**Inclusion rule.** Add only repeated, non-obvious issues that would have prevented real confusion in `scaffold`, `asset-gen`, `task-execution`, `capture`, or any `knowledge/` file. If an item is already in `pyxel-mcp`'s `instructions.md` Error Recovery section, it does not belong here. If it is answerable by `pyxel://api-reference`, it does not belong here.
+**Inclusion rule.** Add only repeated, non-obvious issues that would have prevented real confusion in `scaffold`, `asset-gen`, `task-execution`, `capture`, or any `knowledge/` file. If an item is already in `pyxel-mcp`'s `instructions.md` Error Recovery section or in the `pyxel://anti-patterns` resource, it does not belong here. If it is answerable by `pyxel://api-reference`, it does not belong here.
+
+## Anti-pattern detector reference
+
+See pyxel-mcp resource `pyxel://anti-patterns` for the full list of categories surfaced by `validate`, with rationale and canonical fixes for each. The categories duplicated here previously (`tilemap_zero_zero`, `assets_in_update` and the asset-bank lifecycle, the `btn` vs `btnp` distinction) all live there now and stay current with the actual detector logic.
 
 ## Coordinates and drawing
 
@@ -12,38 +16,12 @@ Keep this file small and high-signal. Each item below has bitten real implementa
 - **Draw order is paint order.** Background first, sprites next, UI
   on top. There is no z-buffer; whatever you draw last wins.
 
-## Image bank lifecycle
+## Image bank size
 
-- `pyxel.images[N].set(...)` and `.load(...)` must run **before**
-  `pyxel.run()`, in `__init__` or a setup helper. Calling them inside
-  `update`/`draw` either misses the first frames or wastes CPU
-  re-uploading every frame.
 - The image bank is **256x256 pixels per slot**. Plan u/v coordinates
   in `ASSETS.md` so sprites do not overlap. Default Pyxel exposes
   3 banks (0, 1, 2); more can be added but most games stay within
   the defaults.
-
-## Tilemap (0, 0) is the default "empty cell"
-
-- Pyxel initializes every cell of `pyxel.tilemaps[N]` to tile coord
-  `(0, 0)`. If the source image bank has visible content at its
-  (0, 0) tile, every "empty" cell of the tilemap renders that
-  content — typically a stair-step pattern of half-drawn sprites
-  across the screen, easy to miss on a small screenshot.
-- The fix: keep the source bank's (0, 0) tile fully transparent
-  (all palette index 0). `inspect_image(image=0, x=0, y=0, w=8, h=8)`
-  confirms this; `inspect_tilemap(...).trap_warning` flags
-  violations. `quality-gate.md` check #13 enforces it.
-
-## Input simulation in headless mode
-
-- The MCP harness drives input through `pyxel.set_btn(key, frame)`
-  and `pyxel.set_btnv(key, val)`. Production code reads the same
-  events via `btn()` / `btnp()` — no code branch needed for tests.
-- This is the entire reason `run` (with scheduled `inputs` and
-  `screen_image` / `state` / `video` snapshots) can verify
-  input-dependent logic. If your code reads input through some other
-  mechanism (e.g., directly polling SDL), tests will not drive it.
 
 ## Audio: SE volume and tone choice
 
@@ -53,15 +31,6 @@ Keep this file small and high-signal. Each item below has bitten real implementa
 - Square (`"s"`) and pulse (`"p"`) tones carry over BGM. Noise
   (`"n"`) is too quiet for melodic SE — reserve it for percussive
   hits where the texture is the point, not the pitch.
-
-## Headless audio driver
-
-Headless runs (the MCP harness, CI) need `SDL_AUDIODRIVER=dummy` in
-the environment, otherwise SDL tries to open a real audio device
-and may hang or error. The harness sets this for you, but if you
-shell out to your own subprocess for audio rendering, set it
-explicitly. `render_audio` produces real WAV output even in dummy
-mode — the dummy driver only suppresses speaker playback.
 
 ## `state` snapshots do not auto-expand deep nesting
 
@@ -87,5 +56,3 @@ promptly; let the loop end naturally.
 ## Feedback Loop
 
 Quirks are curated manually in this skill. Add only repeated, non-obvious issues that would have prevented real confusion in a stage file (`scaffold`, `asset-gen`, `task-execution`, `capture`) or in a knowledge file. Remove items that have stopped biting after engine or skill changes.
-</content>
-</invoke>
