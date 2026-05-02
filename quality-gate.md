@@ -11,6 +11,7 @@ Final acceptance check. PASS gates "done"; FAIL routes back to the phase that ow
 - `screenshots/result/<N>/` — proof bundle from `capture.md` (win-path.gif, lose-path.gif, frames/, audio/).
 - `knowledge/pixel-art.md` — rationale for hierarchy 2/2 and contrast threshold.
 - `knowledge/background.md` — rationale for H-balance ≥ 70% and quadrant density.
+- `pyxel://run-snapshots-schema` (MCP resource) — snapshot field shapes the gate reads when parsing `run` results.
 
 ## Output
 
@@ -20,39 +21,45 @@ Final acceptance check. PASS gates "done"; FAIL routes back to the phase that ow
 
 Run checks in numeric order:
 
-1. **Structural (#1–#3)** — cheap, fail-fast. Rules out wholesale missing artifacts before spending tokens on `play_and_capture`.
+1. **Structural (#1–#3)** — cheap, fail-fast. Rules out wholesale missing artifacts before spending tokens on `run` calls.
 2. **Asset (#4, #7–#9, #11)** — single tool calls per asset; cheap relative to playthroughs.
-3. **Gameplay (#5, #6, #10)** — `play_and_capture` runs of the full win/lose path. Most expensive.
+3. **Gameplay (#5, #6, #10)** — `run` calls of the full win/lose path with `inputs` + `state` snapshots. Most expensive.
 4. **Bundle (#12)** — verify `capture.md` produced the deliverable.
 
 Stop and write gate-report.json with the FAIL even if later checks would have passed. Partial reports are valid input for routing — there is no benefit in running #5 and #6 when #2 or #3 has already failed.
 
-## Stop conditions (flat list — all 12 must PASS)
+## Stop conditions (flat list — all 13 must PASS)
 
 | # | Check | How (concrete pyxel-mcp calls) | FAIL routes to |
 |---|-------|--------------------------------|----------------|
 | 1 | All four state files present | `os.path.exists` for `PLAN.md`, `STRUCTURE.md`, `ASSETS.md`, `MEMORY.md`; all non-empty | the owning phase (visual-target / decomposer / scaffold / asset-planner) |
-| 2 | Script validates | `validate_script main.py` — clean (no syntax errors; anti-pattern warnings reviewed) | task-execution |
-| 3 | Smoke run | `run_and_capture main.py --frames=30` returns non-empty image with no crash | scaffold / task-execution |
-| 4 | Asset identity | Per ASSETS.md entry: `inspect_sprite` reports `len(color_count.keys()) ≥ ASSETS.md minimum` AND `0.15 ≤ fill_ratio ≤ 0.95`. For paired frames: `inspect_animation frame_count=2` reports per-frame pixel diff in 5–50%. The harness computes the diff automatically — no caller-side math | asset-gen |
-| 5 | Win path | `play_and_capture` with PLAN.md win-path inputs reaches `scene == "WIN"` by the final-milestone frame | task-execution or PLAN.md |
-| 6 | Lose path | `play_and_capture` with PLAN.md lose-path inputs (typically `KEY_SPACE` once at frame 30 to enter PLAY, then no further input — player stands still and is killed by hazards; exact schedule from PLAN.md "Lose Path Milestones" `Inputs` column) reaches `scene == "GAME_OVER"` by the final-milestone frame | task-execution or PLAN.md |
-| 7 | Audio renders | Per audio manifest entry in ASSETS.md: `render_audio` returns non-empty notes with peak above the minimum threshold | asset-gen / scaffold |
-| 8 | Palette hierarchy | `inspect_palette` reports `Hierarchy score: 2/2` | asset-planner / asset-gen |
-| 9 | Contrast | `inspect_palette` low-contrast warnings ≤ 1 | asset-planner / asset-gen |
-| 10 | Difficulty floor | Lose path triggers `GAME_OVER` within **10–14 seconds** at the configured fps (≈ 300–420 frames at 30fps; ≈ 600–840 frames at 60fps). Compute the frame window at run time from STRUCTURE.md `FPS` constant — do not hardcode | task-execution / decomposer |
-| 11 | Layout balance | `inspect_layout` reports H-balance ≥ 70% on the **TITLE** scene (TITLE always has text and produces a stable balance metric). For text-less PLAY scenes, fall back to `inspect_screen` on a representative frame and assert that no quadrant is empty | scaffold |
-| 12 | Proof bundle | `screenshots/result/<N>/` directory exists with `win-path.gif`, `lose-path.gif`, `frames/`, `audio/` — see `capture.md` for production rules | capture (in task-execution) |
+| 2 | Script validates | `validate(script="main.py")` returns `ok: True` (no syntax errors; anti-pattern warnings reviewed) | task-execution |
+| 3 | Smoke run | `run(script="main.py", frames=30, snapshots=[{"frame": 29, "kind": "screen_image", "output": "tmp/smoke.png"}])` returns `exit_status="ok"` and the PNG is non-empty | scaffold / task-execution |
+| 4 | Asset identity | Per ASSETS.md entry: `inspect_image(script="main.py", image=0, x=, y=, w=, h=)` reports `len(color_count) ≥ ASSETS.md minimum` AND `0.15 ≤ fill_ratio ≤ 0.95`. For paired frames: `inspect_animation(script="main.py", image=0, x=, y=, w=, h=, region_count=2, direction=<"horizontal" or "vertical" per ASSETS.md bank layout>)` reports `region_diffs[0]["diff_ratio"]` in `0.05–0.50` | asset-gen |
+| 5 | Win path | `run(script="main.py", frames=<final_milestone+1>, inputs=<PLAN.md win-path inputs>, snapshots=[{"frames": [<every milestone frame>], "kind": "state", "attrs": ["scene", ...]}])` returns: keying snapshots with Pattern D, the snapshot at the final milestone has `values["scene"] == "WIN"`. **Optionally also passes if `result["assertions"]` contains `{"name": "win_path_complete", "passed": True}`** (Pattern B augmentation, only meaningful if the script writes the ASSERT line) | task-execution or PLAN.md |
+| 6 | Lose path | `run(script="main.py", frames=<final_milestone+1>, inputs=[{"frame":30,"buttons":["KEY_SPACE"]},{"frame":32,"buttons":[]}], snapshots=[{"frames": [<every milestone frame>], "kind": "state", "attrs": ["lives", "scene"]}])` returns: snapshot at final milestone has `values["scene"] == "GAME_OVER"`. Optionally augmented by `result["assertions"]` containing a `lose_path_complete` PASS | task-execution or PLAN.md |
+| 7 | Audio renders | Per audio manifest entry: `render_audio(script="main.py", target={"sound": N}, output_path=...)` returns `notes` non-empty and `peak_amplitude` ≥ the manifest's minimum threshold (manifest threshold lives in ASSETS.md audio table). Same with `target={"music": N}` for BGM | asset-gen / scaffold |
+| 8 | Palette hierarchy | `inspect_palette(script="main.py")` returns `hierarchy.score == 2` | asset-planner / asset-gen |
+| 9 | Contrast | `inspect_palette(script="main.py")` returns `len(contrast_warnings) ≤ 1` | asset-planner / asset-gen |
+| 10 | Difficulty floor | (mechanism unchanged — same 10-14s band) but: `game_over_frame` is now extracted by Pattern D — find the `state` snapshot whose `values["scene"]` first equals `"GAME_OVER"` and read its `frame`. If no such snapshot exists, FAIL | task-execution / decomposer |
+| 11 | Layout balance | TITLE: `run(script="main.py", frames=60, snapshots=[{"frame": 30, "kind": "layout"}])` returns `snapshots[0]["h_balance"] ≥ 0.70`. (Frame 30 lets the TITLE blink prompt and any intro animation settle.) For text-less PLAY scenes, fall back to `{"frame": F, "kind": "screen_grid"}` and assert that no quadrant of the returned `grid` is empty | scaffold |
+| 12 | Proof bundle | `screenshots/result/<N>/` directory exists with `win-path.gif`, `lose-path.gif`, `frames/`, `audio/` — see `capture.md` | capture (in task-execution) |
+| 13 | Tilemap trap clean | `inspect_tilemap(script="main.py", tilemap=N)` returns `trap_warning: False` for every tilemap declared in STRUCTURE.md. The trap fires when a tilemap uses tile `(0,0)` AND the source bank's `(0,0)` tile has visible content. Route to asset-gen if the source-bank `(0,0)` is non-empty; route to scaffold if the tilemap usage is wrong | asset-gen / scaffold |
 
 ## Computing the difficulty-floor frame window (#10)
 
 Read `FPS` from STRUCTURE.md (commonly `30` or `60`). Compute the band:
 
 ```python
-fps = int(structure_constants["FPS"])           # e.g., 30
-lo, hi = int(10 * fps), int(14 * fps)            # 30fps → (300, 420); 60fps → (600, 840)
-game_over_frame = play_and_capture_result["game_over_frame"]
-result = "PASS" if lo <= game_over_frame <= hi else "FAIL"
+fps = int(structure_constants["FPS"])
+lo, hi = int(10 * fps), int(14 * fps)
+# Find the first state snapshot whose scene == "GAME_OVER" (Pattern D scan):
+state_snaps = [s for s in run_result["snapshots"] if s["kind"] == "state"]
+game_over_frame = next(
+    (s["frame"] for s in state_snaps if s["values"].get("scene") == "GAME_OVER"),
+    None,
+)
+result = "PASS" if game_over_frame is not None and lo <= game_over_frame <= hi else "FAIL"
 ```
 
 Below the band → unfair (the player has no time to react). Above → the lose-path schedule isn't reliably triggering GAME_OVER, which means hazards or collision logic are too soft. Both route the same way, but fix the underlying cause — do not widen the band.
@@ -77,9 +84,10 @@ One row per check. The gate writes this file regardless of PASS/FAIL — it is t
     {"id": 9, "label": "Contrast", "result": "PASS"},
     {"id": 10, "label": "Difficulty floor", "result": "PASS", "evidence": "GAME_OVER at frame 372 (12.4s @ 30fps, in 10–14s band)"},
     {"id": 11, "label": "Layout balance", "result": "PASS", "evidence": "TITLE H-balance 81%"},
-    {"id": 12, "label": "Proof bundle", "result": "PASS"}
+    {"id": 12, "label": "Proof bundle", "result": "PASS"},
+    {"id": 13, "label": "Tilemap trap clean", "result": "PASS"}
   ],
-  "summary": {"pass": 11, "fail": 1, "total": 12}
+  "summary": {"pass": 12, "fail": 1, "total": 13}
 }
 ```
 
@@ -90,10 +98,11 @@ The `fail_route` field is required on every FAIL row. PASS rows may omit `eviden
 These are the cheats the gate is built to catch. Read them before writing the gate-report.json:
 
 1. **"It compiles and runs, looks fine"** — checks #2 and #3 only certify no-crash. They do not certify gameplay. Checks #5 and #6 are the gameplay certifications.
-2. **"I added a sprite"** — without `inspect_sprite` matching the `represents` description from ASSETS.md, the sprite is unverified. Render, look, compare; check #4 enforces this.
+2. **"I added a sprite"** — without `inspect_image` matching the `represents` description from ASSETS.md, the sprite is unverified. Render, look, compare; check #4 enforces this.
 3. **"Bundle exists"** — without playthrough completion (#5 and #6 PASS), the bundle could be a 30-frame loop with stale frames. Existence alone is not enough.
-4. **"Audio plays"** — without `render_audio` returning non-empty notes (#7), the slot may be empty. A silent `play()` call passes #2 and #3 but fails #7.
+4. **"Audio plays"** — without `render_audio` returning `notes` non-empty AND `peak_amplitude` above the manifest threshold (#7), the slot may be empty or inaudible. A silent `play()` call passes #2 and #3 but fails #7.
 5. **Adjusting milestones to fit** — *most important.* If the game can't reach WIN by the planned frame, fix the game, not the milestone. Backward edits to PLAN.md require re-running #5 and #6 from scratch. Loosening the spec to dodge a FAIL is the failure mode this gate exists to prevent.
+6. **"`trap_warning: True` is a silent killer."** Tilemap (0,0) trap means every "empty" cell shows a sprite. The visual artifact is "stair-step pattern across empty space" — easy to miss in a small screenshot, fatal in a 256x256 tilemap. Check #13 catches it.
 
 ## What happens on FAIL
 
@@ -113,10 +122,11 @@ If multiple checks FAIL, route to the earliest-stage owner first (e.g., #4 asset
 - **#4 paired-frame diff < 5%.** Two frames are visually identical; route to asset-gen to redraw one.
 - **#10 lose path < 10s.** Hazards spawn too aggressively; route to task-execution to slow spawn rate.
 - **#11 H-balance < 70% on TITLE.** Title text is left- or right-weighted; route to scaffold to recenter.
+- **#13 trap_warning True.** Source-bank (0,0) has visible pixels and the tilemap uses (0,0). Route to asset-gen to clear source (0,0), or to scaffold to remap empty tilemap cells to a different tile coord.
 
 ## When this gate PASSes
 
-All 12 checks PASS in gate-report.json. Then:
+All 13 checks PASS in gate-report.json. Then:
 
 - `PLAN.md` shows all milestone rows marked `done` with verified-by notes.
 - `MEMORY.md` has any non-obvious gotchas captured for next session.
