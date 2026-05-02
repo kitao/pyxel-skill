@@ -5,68 +5,76 @@ Called from `task-execution.md` (intermediate captures) and
 `screenshots/result/<N>/` directory containing runnable evidence
 that the game functions end-to-end.
 
+## References
+
+- `pyxel://run-snapshots-schema` (MCP resource) — full schema for `video`, `screen_image`, `screen_grid`, `state`, `layout` snapshot kinds used in bundle production.
+- `task-execution.md` — calls into this file for intermediate captures.
+- `quality-gate.md` — gates final bundle existence (check #12) and assets (#4).
+
 ## Bundle structure
 
 For attempt `<N>` (start at 1, increment each new final attempt):
 
 ```
 screenshots/result/<N>/
-├── win-path.gif         — record_gameplay output of full clear
-├── lose-path.gif        — record_gameplay output of full death
+├── win-path.gif         — `run` `video` snapshot of full clear
+├── lose-path.gif        — `run` `video` snapshot of full death
 ├── frames/
-│   ├── title.png
-│   ├── play_start.png
-│   ├── mid_game.png
-│   ├── win.png
-│   └── game_over.png
+│   ├── title.png        — `run` `screen_image` snapshot
+│   └── ...              (5 frames at TITLE, play_start, mid_game, win, game_over)
 ├── audio/
-│   ├── bgm_ch0.wav      — render_audio per BGM channel
-│   ├── bgm_ch1.wav
-│   ├── bgm_ch2.wav
-│   ├── se_jump.wav      — render_audio per SE manifest entry
-│   ├── se_climb.wav
-│   ├── se_death.wav
-│   └── se_win.wav
+│   ├── bgm_ch0.wav      — render_audio per BGM channel (target={"music": N})
+│   └── se_*.wav         — render_audio per SE manifest entry (target={"sound": N})
 └── notes.md             — summary, observations, known issues
 ```
 
-`record_gameplay` writes the GIFs; `render_audio` writes WAVs via
-its `output_wav_path` argument; `capture_frames` writes PNGs.
+A single `run` call per path writes the GIF (via a `video` snapshot) and
+the milestone frame PNGs (via a multi-frame `screen_image` snapshot)
+atomically. `render_audio` writes WAVs via its `output_path` argument.
 
 ## Win-path GIF requirements
 
-- Duration: at least the full win-path scenario, typically 20–30
-  seconds at 30 fps = **600–900 frames**.
-- Must show the player traversing from start to goal and ending
-  on the WIN scene.
-- A bundle whose first 5 seconds look right and then sits static
-  for 20 seconds is FAIL, not partial pass — `compare_frames`
-  between mid and late frames must show meaningful change.
+- Duration: at least the full win-path scenario, typically 20–30 seconds at 30 fps = **600–900 frames**.
+- Must show the player traversing from start to goal and ending on the WIN scene.
+- Production: `run` `video` snapshot with `start_frame=0, end_frame=<frames>, fps=30, output="screenshots/result/<N>/win-path.gif"`. The `.gif` extension triggers PIL-based encoding (no ffmpeg dependency).
+- A bundle whose first 5 seconds look right and then sits static for 20 seconds is FAIL — `compare_frames` between mid and late frames must show meaningful change (Pattern G).
 
 ## Lose-path GIF requirements
 
-- Duration: at least until GAME_OVER triggers, typically
-  **≥ 360 frames** (~12 s at 30 fps).
-- Must show a hazard appearing, hitting the player, and `lives`
-  decrementing on screen.
+- Duration: at least until GAME_OVER triggers, typically **≥ 360 frames** (~12 s at 30 fps).
+- Must show a hazard appearing, hitting the player, and `lives` decrementing on screen.
 - Must end on the GAME_OVER scene.
+- Production: `run` `video` snapshot, same shape as win-path with shorter `end_frame`.
+
+For `.mp4` output, the harness falls back to GIF if ffmpeg is unavailable on PATH (spec §6.4.5) — emits a warning and rewrites the path to `.gif`. Either format is accepted by `quality-gate.md` check #12.
 
 ## Frame snapshots
 
-Capture key scene transitions with `capture_frames`. Pick frames
-that fall on TITLE, the moment PLAY starts, mid-game, WIN, and
-GAME_OVER. For input-driven scenes (PLAY, mid-game), use
-`play_and_capture` with the same input schedule the GIF uses, so
-the snapshots and the GIF tell the same story.
+Capture key scene transitions in the **same `run` call** that produces the GIF, so the inputs and frame timing are guaranteed to match. Add a multi-frame `screen_image` snapshot to the `snapshots` list:
+
+```python
+{
+    "frames": [30, 90, 180, 360, 720],
+    "kind": "screen_image",
+    "output_pattern": "screenshots/result/1/frames/{frame}.png",
+    "scale": 2,
+}
+```
+
+The `{frame}` token expands to a 5-digit zero-padded integer (only this token is supported — `{frame:03d}` and unknown tokens are validation errors). After the run, the files are at `00030.png`, `00090.png`, etc. Rename to `title.png`, `play_start.png`, `mid_game.png`, `win.png`, `game_over.png` per the bundle layout, OR pre-name by issuing five separate single-frame `screen_image` snapshots with literal `output` paths (longer snapshot list, no rename).
 
 ## Audio rendering
 
-For every audio cue declared in `REFERENCE.md` §6 (BGM channels and
-SE), render to WAV. Verify each WAV is non-empty and contains
-notes — an empty `notes` array in the response means the slot is
-blank or the script never ran the `set` call. The note sequence
-in the response confirms the BGM/SE plays the intended pitches,
-even though headless playback is silent.
+For every audio cue declared in `ASSETS.md` (BGM channels and SE), render to WAV:
+
+```python
+render_audio(script="main.py", target={"sound": 10},
+             output_path="screenshots/result/1/audio/se_jump.wav")
+render_audio(script="main.py", target={"music": 0},
+             output_path="screenshots/result/1/audio/bgm_ch0.wav")
+```
+
+The `target` dict must contain exactly one of `"sound"` or `"music"` (validation error otherwise). The result schema is unchanged: `peak_amplitude`, `notes`, `warnings`. Assert `peak_amplitude > 0` and `len(notes) > 0` per `quality-gate.md` check #7. An empty slot returns success with `peak_amplitude: 0.0`, `notes: []`, plus a warning — that's the gate-failing condition.
 
 ## notes.md template
 
@@ -96,24 +104,41 @@ Plan: PLAN.md @ <git ref>
 
 ## Concrete invocations
 
-```bash
-record_gameplay main.py \
-  --inputs '<win-path inputs from PLAN.md>' \
-  --duration 720 --scale 2 \
-  > screenshots/result/1/win-path.gif
+```python
+# Win path: GIF + frames + state proof, all in one run
+run(
+    script="main.py",
+    frames=720,
+    inputs=<PLAN.md win-path inputs>,
+    snapshots=[
+        {"kind": "video", "start_frame": 0, "end_frame": 720, "fps": 30,
+         "output": "screenshots/result/1/win-path.gif"},
+        {"frames": [30, 90, 180, 360, 719], "kind": "screen_image",
+         "output_pattern": "screenshots/result/1/frames/win-{frame}.png", "scale": 2},
+        {"frame": 719, "kind": "state", "attrs": ["scene"]},
+    ],
+)
 
-record_gameplay main.py \
-  --inputs '[{"frame":30,"keys":["KEY_SPACE"]},{"frame":32,"keys":[]}]' \
-  --duration 480 --scale 2 \
-  > screenshots/result/1/lose-path.gif
+# Lose path: same shape, shorter frames, lose-path inputs
+run(
+    script="main.py",
+    frames=480,
+    inputs=[
+        {"frame": 30, "buttons": ["KEY_SPACE"]},
+        {"frame": 32, "buttons": []},
+    ],
+    snapshots=[
+        {"kind": "video", "start_frame": 0, "end_frame": 480, "fps": 30,
+         "output": "screenshots/result/1/lose-path.gif"},
+        {"frame": 479, "kind": "state", "attrs": ["scene"]},
+    ],
+)
 
-capture_frames main.py --frames="30,90,180,360,720" --scale=2
-
-render_audio main.py --sound_index=10 \
-  --output_wav_path=screenshots/result/1/audio/se_jump.wav
-
-render_audio main.py --music_index=0 \
-  --output_wav_path=screenshots/result/1/audio/bgm_ch0.wav
+# Audio (script must run cleanly to populate sound slots first):
+render_audio(script="main.py", target={"sound": 10},
+             output_path="screenshots/result/1/audio/se_jump.wav")
+render_audio(script="main.py", target={"music": 0},
+             output_path="screenshots/result/1/audio/bgm_ch0.wav")
 ```
 
 ## Anti-patterns
@@ -125,9 +150,8 @@ render_audio main.py --music_index=0 \
   or input handling.
 - Reusing a stale bundle from before a code change. Bump `<N>` and
   produce a fresh bundle after any non-trivial change.
-- Bundle whose middle 80% is the same frame (game stalled). Use
-  `compare_frames` between two frames in that range to confirm
-  meaningful motion before declaring the bundle complete.
+- Bundle whose middle 80% is the same frame (game stalled). `compare_frames(frame_a=mid_frame_path, frame_b=late_frame_path)` returns `identical: True` only if pixels are bit-identical. For middle-of-bundle stall checks, capture two frames in the visually-active range and assert `identical: False`. (`region` is `None` when identical, so the check needs both `identical` and `size_match`.) (Pattern G)
+- Re-attempt regression checks (Pattern G). When iterating, compare a representative frame from the previous bundle (`screenshots/result/<N-1>/frames/mid_game.png`) to the same frame in the new bundle (`screenshots/result/<N>/frames/mid_game.png`). Drift confirms a fix moved things; identical pixels mean the fix did not change the visible state. Useful as a sanity check before running the full gate.
 
 ## When this is done
 
@@ -136,5 +160,3 @@ both GIFs, the five frame snapshots, one WAV per audio manifest
 entry, and `notes.md`. The counter `<N>` is the next integer
 above the previous bundle. Return to `task-execution.md` (which
 hands off to `quality-gate.md`).
-</content>
-</invoke>
