@@ -20,12 +20,13 @@ Implement gameplay logic against `PLAN.md` and `STRUCTURE.md`. Verify after ever
 
 Read these before invoking the corresponding tools:
 
-- `test-harness.md` — milestone playthrough verification (`play_and_capture` + `inspect_state` aggregation). Read before win/lose-path runs.
+- `test-harness.md` — milestone playthrough via a single `run` call with scheduled `inputs` + per-milestone `state` snapshots. Read before win/lose-path runs.
 - `capture.md` — intermediate captures and the final proof bundle. Read before producing any frames or GIFs that the gate will read.
 - `quirks.md` — Pyxel gotchas (coords, `btnp` semantics, `colkey`, MML volume scaling). Read whenever Pyxel behaves unexpectedly.
 - `knowledge/game-feel.md` — physics tuning (gravity, jump arcs), hitboxes vs sprite bounds, camera follow, screen shake, hitstop. Read before implementing player physics or hit feedback.
 - `knowledge/audio.md` — SE-per-event policy, channel allocation (BGM ch0–2, SE ch3), MML volume mapping. Read before adding any sound trigger.
 - `knowledge/patterns.md` — level/enemy archetypes, animation-frame timing (`frame_count // 4 % 2`). Read before implementing scrolling, spawn waves, or AI patterns.
+- `pyxel://run-snapshots-schema` (MCP resource) — full schema for the 5 snapshot kinds (screen_image, screen_grid, state, layout, video) and multi-frame syntax. Read before constructing complex snapshot lists.
 
 ## Per-task loop
 
@@ -35,26 +36,50 @@ For each task in `PLAN.md`:
 2. **Read `STRUCTURE.md`.** Identify which class / function gains the change. If no module owns this behavior, you skipped Stage 3 — go back.
 3. **Read the current source.** Don't guess what's there.
 4. **Implement the smallest change that makes the task observable.** One method, one constant, one behavior. No bundled "while I'm in there" edits.
-5. **`validate_script` clean.** Catches syntax errors and Pyxel anti-patterns before runtime.
-6. **`run_and_capture` at a relevant frame.** Sanity render. Catches import errors, infinite loops, obvious draw failures, or a black screen.
-7. **Run the task's specific Verify procedure** — typically `play_and_capture` with the scripted inputs from PLAN.md plus `inspect_state` at the milestone frames named in the task.
+5. **`validate` clean.** Catches syntax errors and Pyxel anti-patterns before runtime.
+6. **One `run` call covers smoke + milestone verification (Pattern A).** Build a `snapshots` list with: (a) `{"frame": K, "kind": "screen_image", "output": "tmp/smoke.png"}` at one early frame to catch black-screen / import failures, and (b) one multi-frame `{"frames": [...], "kind": "state", "attrs": [...]}` covering every frame the task's predicates reference. Pass the task's input schedule via `inputs`. The single call returns `snapshots`, `assertions`, `exit_status`, and `log` — read them all.
+7. **Evaluate the task's Verify predicates against the returned snapshots and assertions.** Each Verify clause maps to either (a) a `state` snapshot value at a specific frame, or (b) a named ASSERT in `result["assertions"]` (Pattern B). For complex tasks, use both: state for the agent's predicate evaluation, ASSERT for the script's self-check. If the script-side ASSERT disagrees with the agent-side predicate evaluation, that's a divergence — investigate before declaring PASS.
 8. **If FAIL** — read the captured state, find the divergence, fix. Don't move on. Don't lower the threshold. Don't retry the same input expecting a different result.
 9. **If PASS** — update `PLAN.md` (mark task done with a one-line `verified by:` note pointing to the milestone frame and observed value), append to `MEMORY.md` if a non-obvious gotcha was discovered, commit.
 
 ## Worked example: one task end-to-end
 
-PLAN.md task: *"Player jumps reach height H_JUMP=24px in 18 frames; falling resumes after frame 18; landing on platform clears `vy`."* Verify: `play_and_capture` with `KEY_SPACE` at frame 30, `inspect_state` at frames 31, 48, 60. Predicates: `y[31] - y[30] < 0`, `y[48] - y[31] ≈ -24` (peak), `y[60] >= y[31]` (landed).
+PLAN.md task: *"Player jumps reach height H_JUMP=24px in 18 frames; falling resumes after frame 18; landing on platform clears `vy`."*
 
-```bash
-# Step 4: edit Player.update() to add jump physics (one method change).
-# Step 5:
-validate_script main.py
-# Step 6:
-run_and_capture main.py --frames=60
-# Step 7:
-play_and_capture main.py --inputs='[{"frame":30,"down":["KEY_SPACE"]}]' --frames=60
-inspect_state main.py --frames='[31,48,60]' --attrs='player.y,player.vy,player.on_ground'
+Verify: a single `run` call drives the script through 60 frames with `KEY_SPACE` pressed at frame 30, capturing `state` at frames 30, 31, 48, 60.
+
+```python
+# In your stage script (or directly via the MCP client):
+run(
+    script="main.py",
+    frames=60,
+    inputs=[
+        {"frame": 30, "buttons": ["KEY_SPACE"]},
+        {"frame": 32, "buttons": []},
+    ],
+    snapshots=[
+        {"frame": 5, "kind": "screen_image", "output": "tmp/smoke-f5.png"},
+        {"frames": [30, 31, 48, 60], "kind": "state",
+         "attrs": ["player.y", "player.vy", "player.on_ground"]},
+    ],
+)
 ```
+
+The `state` block expands to 4 entries with frames 30, 31, 48, 60. Use Pattern D to key by frame:
+
+```python
+snaps = {(s["kind"], s["frame"]): s for s in result["snapshots"]}
+y30 = snaps[("state", 30)]["values"]["player.y"]
+y31 = snaps[("state", 31)]["values"]["player.y"]
+y48 = snaps[("state", 48)]["values"]["player.y"]
+y60 = snaps[("state", 60)]["values"]["player.y"]
+
+assert y31 - y30 < 0           # jumping
+assert abs(y48 - y31 - (-24)) < 2   # peak around -24px
+assert y60 >= y31              # landed
+```
+
+(Optional augmentation per Pattern B: have the script `print("ASSERT PASS: jump_lands")` once `on_ground` becomes True after frame 31. The agent then sees both the predicate result AND the script's self-confirmation in `result["assertions"]`.)
 
 Read the state output. If `player.y[48] - player.y[31] == -10` instead of ~-24, the jump curve is wrong — fix `JUMP_VY` or gravity, not the milestone frame. If `player.on_ground[60] == False`, the landing detection is broken — fix the collision check, not the predicate. Step 9 only runs once all three predicates hold.
 
@@ -68,11 +93,11 @@ Read the state output. If `player.y[48] - player.y[31] == -10` instead of ~-24, 
 
 When the code says X happened but the capture shows Y, the capture is right. Don't argue with the pixels. Three concrete divergence cases:
 
-- "I drew the player at (40, 100)" but the screenshot shows nothing at (40, 100). Probable causes: `colkey` makes the sprite invisible against background; the sprite is drawn but at a different layer ordering and is overdrawn; `pyxel.cls()` is called *after* the player's draw and erases it. Run `inspect_screen` at that exact frame and look at the palette indices around (40, 100); the truth is in the grid.
-- "I incremented score on barrel-jump" but `inspect_state` at frame 150 shows `score == 0`. The collision check never fires; either the hitbox rectangle is wrong (bounds inverted, off-by-one) or the trigger condition has a strict-equality bug (`y == barrel.y` instead of `abs(y - barrel.y) < EPS`).
-- "Mario climbs the ladder" but `play_and_capture` with `KEY_UP` shows Mario stuck. The climb-eligibility check has a strict bound (`x == ladder.x` instead of `ladder.x <= x <= ladder.x + ladder.w`), or `on_ladder` is set in `update()` *after* the input read.
+- "I drew the player at (40, 100)" but the screenshot shows nothing at (40, 100). Probable causes: `colkey` makes the sprite invisible against background; the sprite is drawn but at a different layer ordering and is overdrawn; `pyxel.cls()` is called *after* the player's draw and erases it. Use a `run` call snapshotting `screen_grid` at that frame and look at the palette indices around (40, 100); the truth is in the grid.
+- "I incremented score on barrel-jump" but a `state` snapshot inside `run` at frame 150 shows `score == 0`. The collision check never fires; either the hitbox rectangle is wrong (bounds inverted, off-by-one) or the trigger condition has a strict-equality bug (`y == barrel.y` instead of `abs(y - barrel.y) < EPS`).
+- "Mario climbs the ladder" but `run` with `KEY_UP` inputs shows Mario stuck. The climb-eligibility check has a strict bound (`x == ladder.x` instead of `ladder.x <= x <= ladder.x + ladder.w`), or `on_ladder` is set in `update()` *after* the input read.
 
-In each case the fix is to look at observed state, not to re-explain the code. `inspect_state` and `inspect_screen` are the witnesses; the code is the suspect.
+In each case the fix is to look at observed state, not to re-explain the code. `screen_grid` and `state` snapshots inside `run` are the witnesses; the code is the suspect.
 
 ## When to consult each knowledge file
 
@@ -86,14 +111,22 @@ The references at the top of this stage are not all loaded for every task. Choos
 ## Anti-shortcut rules
 
 - **No "looks fine".** Each Verify is a specific predicate against an observed value. If you cannot name the predicate, it is not a Verify — go fix PLAN.md.
-- **Don't skip lose-path verification.** Win path is exciting; lose path is forgotten. Both must verify with `play_and_capture` and reach their target scene by the milestone frame.
+- **Don't skip lose-path verification.** Win path is exciting; lose path is forgotten. Both must verify with `run` with `inputs` and reach their target scene by the milestone frame.
 - **Don't comment out failing assertions.** Fix the code.
 - **Don't lower the threshold to make it pass.** If `lives reaches 0` doesn't happen by frame 360 in lose path, either barrels are too slow (PLAN.md is wrong → re-decompose) or collision is broken (code is wrong → fix). Don't move the milestone to frame 600.
-- **Don't trust subprocess returncode alone.** A script can run cleanly and produce a black screen, no audio, frozen state. Always observe captured state — that's what `inspect_state` is for.
+- **Don't trust subprocess returncode alone.** A script can run cleanly and produce a black screen, no audio, frozen state. Always observe captured state — that's what `state` snapshots inside `run` are for.
+- **Don't replace ASSERT lines with comments.** If the script writes `print("ASSERT PASS: ...")` to confirm a milestone, removing the print to "clean up" silently breaks Pattern B verification. Either keep the ASSERT or migrate to an explicit `state` snapshot agent-side.
 
 ## Closed-loop input simulation
 
-Open-loop input (timed press / release) drifts. Over 200+ frames the player position desyncs from the planned trajectory because of floating-point physics, frame-skip, and stochastic spawn timing. For long sequences, run `play_and_capture` in segments: at each milestone, read observed state, then compute the next input segment from the actual position rather than the planned one.
+Open-loop input (timed press / release) drifts. Over 200+ frames the player position desyncs from the planned trajectory because of floating-point physics, frame-skip, and stochastic spawn timing. For long sequences, use Pattern C — canonical for pyxel-mcp's subprocess isolation model:
+
+1. `result = run(script=..., frames=200, inputs=schedule_so_far, snapshots=[{"frames": [199], "kind": "state", "attrs": [...]}])`
+2. Read observed state from `result["snapshots"]`.
+3. Compute the next input segment from the observed state.
+4. Issue a **new** `run` call with the **cumulative** input schedule from frame 0 to the next milestone.
+
+Do NOT try to resume `run` from a mid-game state. Each `run` is a fresh subprocess init — pyxel-mcp's isolation model (spec §5.1) makes each call start from frame 0. The cumulative-replay approach is the correct trade-off: slower than continuation but deterministic. This differs from godogen, where Bevy's persistent `World` allows `Update`-loop continuation.
 
 A second pattern, useful when input would have to thread a precise needle: temporarily replace input checks with state observation in a test fixture:
 
@@ -114,10 +147,10 @@ Design milestones around what state should be reached, not what input should hav
 Before marking a task done in PLAN.md:
 
 - [ ] Code change is minimal and confined to the task's scope (no drive-by edits).
-- [ ] `validate_script` clean.
-- [ ] `run_and_capture` at a representative frame: no black screen, no obvious render bug.
-- [ ] All Verify predicates from PLAN.md are observed in `inspect_state` / `play_and_capture` output.
-- [ ] PLAN.md task marked done with a one-line `verified by:` note (e.g., `verified by: play_and_capture frames=420, scene=WIN, score=12000`).
+- [ ] `validate` clean.
+- [ ] One `run` call with smoke screen_image + milestone state snapshots: no black screen, no obvious render bug.
+- [ ] All Verify predicates from PLAN.md are observed in `state` snapshots / `run` output.
+- [ ] PLAN.md task marked done with a one-line `verified by:` note (e.g., `verified by: run frames=420, state snapshot at frame 419 → scene=WIN, score=12000`). If the task uses ASSERT lines, also include the assertion summary: `verified by: run frames=420, state snapshot frame 419 → scene=WIN; assertions: win_path_complete=PASS`.
 - [ ] `MEMORY.md` updated if a gotcha was discovered (don't repeat yourself in the next task).
 
 ## What to record in MEMORY.md
@@ -140,7 +173,7 @@ The Stop hook (`hooks/stop_check_bundle.py`) fires at session end and warns on a
 - **Skipping Risk Tasks for Main Build because Main Build is "easier".** Risk Tasks were isolated for a reason — bugs in them spread into Main Build with interest.
 - **Editing physics constants mid-task.** If `JUMP_VY` changes, all jump-related milestones in PLAN.md need re-verification — and they probably already passed at the old value, so changing it now silently breaks them.
 - **Adding new features mid-task.** If a fix needs a new system (e.g., particle effects for damage flash), open a new task in `PLAN.md` and verify it on its own loop. Don't pile.
-- **"It works on my machine" via interactive run.** Stage 6 verifies via the harness — `play_and_capture`, `inspect_state`, `render_audio`. An interactive run means nothing.
+- **"It works on my machine" via interactive run.** Stage 6 verifies via the harness — `run` for state and screen, `render_audio` for audio. An interactive run means nothing.
 - **Skipping `MEMORY.md` updates.** A gotcha you found and didn't write down will cost an hour next session.
 
 ## When this stage is done
