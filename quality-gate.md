@@ -25,10 +25,11 @@ Run checks in numeric order:
 2. **Asset (#4, #7–#9, #11)** — single tool calls per asset; cheap relative to playthroughs.
 3. **Gameplay (#5, #6, #10)** — `run` calls of the full win/lose path with `inputs` + `state` snapshots. Most expensive.
 4. **Bundle (#12)** — verify `capture.md` produced the deliverable.
+5. **Scene visuals (#14, #15)** — short `run` calls with `screen_grid` snapshots at PLAY frame 119 and at WIN/GAME_OVER entry+30. Cheap; they share the playthrough infrastructure but read pixel grids rather than state.
 
 Stop and write gate-report.json with the FAIL even if later checks would have passed. Partial reports are valid input for routing — there is no benefit in running #5 and #6 when #2 or #3 has already failed.
 
-## Stop conditions (flat list — all 13 must PASS)
+## Stop conditions (flat list — all 15 must PASS)
 
 | # | Check | How (concrete pyxel-mcp calls) | FAIL routes to |
 |---|-------|--------------------------------|----------------|
@@ -45,6 +46,8 @@ Stop and write gate-report.json with the FAIL even if later checks would have pa
 | 11 | Layout balance | TITLE: `run(script="main.py", frames=60, snapshots=[{"frame": 30, "kind": "layout"}])` returns `snapshots[0]["h_balance"] ≥ 0.70`. (Frame 30 lets the TITLE blink prompt and any intro animation settle.) For text-less PLAY scenes, fall back to `{"frame": F, "kind": "screen_grid"}` and assert that no quadrant of the returned `grid` is empty | scaffold |
 | 12 | Proof bundle | `screenshots/result/<N>/` directory exists with `win-path.gif`, `lose-path.gif`, `frames/`, `audio/` — see `capture.md` | capture (in task-execution) |
 | 13 | Tilemap trap clean | `inspect_tilemap(script="main.py", tilemap=N)` returns `trap_warning: False` for every tilemap declared in STRUCTURE.md. The trap fires when a tilemap uses tile `(0,0)` AND the source bank's `(0,0)` tile has visible content. Route to asset-gen if the source-bank `(0,0)` is non-empty; route to scaffold if the tilemap usage is wrong | asset-gen / scaffold |
+| 14 | Background non-empty | PLAY frame 119 (well after INTRO/transition) must show variety beyond a flat single-color void. `run(script="main.py", frames=120, inputs=[{"frame":1,"buttons":["KEY_SPACE"]},{"frame":3,"buttons":[]}], snapshots=[{"frame":119,"kind":"screen_grid","bbox":[0,0,W,H]}])`, then assert the returned `grid` contains at least 2 distinct dark-layer palette indices. The dark layer is `inspect_palette`'s bg layer (default-palette bg = `{0,1,5}`); fall back to that set if `inspect_palette` was not run. The PLAY scene need not have a parallax skyline — but it must show texture, gradient, twinkling stars, scaffolding pattern, etc. | scaffold / asset-planner |
+| 15 | Scene transitions are visual | WIN and GAME_OVER scenes must contain at least one sprite blit (not just `pyxel.text` on `cls(0)`). `run(script="main.py", frames=<scene_entry_frame+30>, inputs=<inputs leading to WIN or GAME_OVER>, snapshots=[{"frame":<scene_entry_frame+30>,"kind":"screen_grid","bbox":[0,0,W,H]}])`, then assert the returned `grid` contains at least 5 distinct palette indices total (text alone on cls produces 2 — bg + text color; sprites add at least 3 more layers). Run for both WIN and GAME_OVER scenes; both must pass | scaffold |
 
 ## Computing the difficulty-floor frame window (#10)
 
@@ -85,9 +88,11 @@ One row per check. The gate writes this file regardless of PASS/FAIL — it is t
     {"id": 10, "label": "Difficulty floor", "result": "PASS", "evidence": "GAME_OVER at frame 372 (12.4s @ 30fps, in 10–14s band)"},
     {"id": 11, "label": "Layout balance", "result": "PASS", "evidence": "TITLE H-balance 81%"},
     {"id": 12, "label": "Proof bundle", "result": "PASS"},
-    {"id": 13, "label": "Tilemap trap clean", "result": "PASS"}
+    {"id": 13, "label": "Tilemap trap clean", "result": "PASS"},
+    {"id": 14, "label": "Background non-empty", "result": "PASS", "evidence": "PLAY frame 119 grid has 4 distinct dark-layer indices"},
+    {"id": 15, "label": "Scene transitions are visual", "result": "PASS", "evidence": "WIN frame N+30 grid: 7 distinct indices; GAME_OVER frame M+30 grid: 6 distinct indices"}
   ],
-  "summary": {"pass": 12, "fail": 1, "total": 13}
+  "summary": {"pass": 14, "fail": 1, "total": 15}
 }
 ```
 
@@ -103,6 +108,7 @@ These are the cheats the gate is built to catch. Read them before writing the ga
 4. **"Audio plays"** — without `render_audio` returning `notes` non-empty AND `peak_amplitude` above the manifest threshold (#7), the slot may be empty or inaudible. A silent `play()` call passes #2 and #3 but fails #7.
 5. **Adjusting milestones to fit** — *most important.* If the game can't reach WIN by the planned frame, fix the game, not the milestone. Backward edits to PLAN.md require re-running #5 and #6 from scratch. Loosening the spec to dodge a FAIL is the failure mode this gate exists to prevent.
 6. **"`trap_warning: True` is a silent killer."** Tilemap (0,0) trap means every "empty" cell shows a sprite. The visual artifact is "stair-step pattern across empty space" — easy to miss in a small screenshot, fatal in a 256x256 tilemap. Check #13 catches it.
+7. **No mid-attempt threshold relaxation.** If a check threshold is wrong, change it BEFORE a run begins, not during. CI for skill should reject diffs to quality-gate.md thresholds during an active validation attempt. Mid-run threshold changes are documented in `gate-report.json["threshold_overrides"]` and trigger automatic FAIL of the affected check unless the threshold is restored.
 
 ## What happens on FAIL
 
@@ -126,7 +132,7 @@ If multiple checks FAIL, route to the earliest-stage owner first (e.g., #4 asset
 
 ## When this gate PASSes
 
-All 13 checks PASS in gate-report.json. Then:
+All 15 checks PASS in gate-report.json. Then:
 
 - `PLAN.md` shows all milestone rows marked `done` with verified-by notes.
 - `MEMORY.md` has any non-obvious gotchas captured for next session.
