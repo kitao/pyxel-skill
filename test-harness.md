@@ -37,6 +37,8 @@ becomes a single `run` call:
 run(
     script="main.py",
     frames=121,                    # one past the last milestone
+    random_seed=42,                # required for gate playthroughs (quality-gate Anti-shortcut rule #8)
+    stall_window_frames=60,        # 2s freeze detection (when state snapshots are scheduled, see §6.5)
     inputs=[
         {"frame": 30, "buttons": ["KEY_SPACE"]},
         {"frame": 32, "buttons": []},
@@ -69,6 +71,8 @@ performs the minimum input to enter PLAY) and is killed by hazards.
 run(
     script="main.py",
     frames=601,
+    random_seed=42,                # required for gate playthroughs (quality-gate Anti-shortcut rule #8)
+    stall_window_frames=60,        # 2s freeze detection (when state snapshots are scheduled, see §6.5)
     inputs=[
         {"frame": 30, "buttons": ["KEY_SPACE"]},
         {"frame": 32, "buttons": []},

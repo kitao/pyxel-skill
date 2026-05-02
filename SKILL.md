@@ -78,6 +78,20 @@ Each stage file is read **only when entering that stage** (JIT loading). Referen
 | `asset-gen.md` | Stage 5: hex-string sprite implementation + verify | After Stage 4 |
 | `task-execution.md` | Stage 6: gameplay implementation loop | After Stage 5 (or on resume) |
 | `quality-gate.md` | Stage 7: stop-conditions + PASS/FAIL report | At end of Stage 6 |
+
+### Phase names ↔ stage files
+
+The quality gate's `gate-report.json` writes abstract phase names in `fail_route` so the artifact stays stable across stage-file renames. Use this table to route a FAIL to the right file:
+
+| Abstract phase    | Stage file          |
+|-------------------|---------------------|
+| `visual-design`   | `visual-target.md`  |
+| `spec`            | `decomposer.md`     |
+| `scaffolding`     | `scaffold.md`       |
+| `asset-planning`  | `asset-planner.md`  |
+| `sprite-quality`  | `asset-gen.md`      |
+| `playthrough`     | `task-execution.md` |
+| `bundle`          | `capture.md`        |
 | `quirks.md` | Pyxel API gotchas | When Pyxel behaves unexpectedly |
 | `test-harness.md` | Milestone playthrough verification | Called from Stage 6 |
 | `capture.md` | Proof bundle production | Called from Stage 6 / Stage 7 |
