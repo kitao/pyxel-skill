@@ -97,8 +97,8 @@ The `App` instance owns:
 
 ## Verification
 
-- `validate_script main.py` — clean.
-- `run_and_capture main.py --frames=30` — TITLE scene captures (text visible, blink prompt working, BG color matches Vision).
+- `validate(script="main.py")` — clean.
+- `run(script="main.py", frames=30, snapshots=[{"frame": 29, "kind": "screen_image", "output": "tmp/scaffold-smoke.png"}])` — TITLE scene captures (text visible, blink prompt working, BG color matches Vision).
 ```
 
 ## Skeleton `main.py` shape
@@ -186,8 +186,8 @@ App()
 
 The skeleton must run cleanly. Verify:
 
-- `validate_script main.py` is clean (no syntax errors, no anti-pattern warnings).
-- `run_and_capture main.py --frames=30` returns a non-empty image showing the TITLE text and blinking prompt.
+- `validate(script="main.py")` is clean (no syntax errors, no anti-pattern warnings).
+- `run(script="main.py", frames=30, snapshots=[{"frame": 29, "kind": "screen_image", "output": "tmp/scaffold-smoke.png"}])` returns a non-empty PNG showing the TITLE text and blinking prompt.
 
 ## Project marker
 
@@ -215,6 +215,6 @@ screenshots/
 ## When this stage is done
 
 - `STRUCTURE.md` has Modules, Scene state machine, Tuning, State persistence, Verification sections appended.
-- `main.py` runs and shows TITLE without errors (`validate_script` clean, `run_and_capture --frames=30` shows TITLE).
+- `main.py` runs and shows TITLE without errors (`validate` clean, `run` with a 30-frame `screen_image` snapshot shows TITLE).
 - `.pyxel-skill/stage-marker` exists and contains `stage-3-scaffold-complete`.
 - Move to Stage 4 (read `asset-planner.md`).
