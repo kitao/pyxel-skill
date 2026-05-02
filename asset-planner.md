@@ -45,7 +45,7 @@ For every named asset, write:
 - **frame relations:** paired with `player_walk_2`; paired-frame diff must be 5–50% of pixels
 ```
 
-The `represents:` field is the asset-gen identity contract. After implementation, a stranger shown the rendered sprite without the label must be able to identify it as "Mario walking". The quality gate (#4) tests against this constraint via `inspect_sprite` (color count, fill ratio) and `inspect_animation` (per-frame diff).
+The `represents:` field is the asset-gen identity contract. After implementation, a stranger shown the rendered sprite without the label must be able to identify it as "Mario walking". The quality gate (#4) tests against this constraint via `inspect_image` (color count, fill ratio) and `inspect_animation` (per-frame diff via `region_count` + `direction` matching the bank layout).
 
 ## Palette discipline per asset
 
@@ -126,7 +126,7 @@ pyxel.images[0].set(x, y, [
 
 Each character is a hex digit (0–f) representing palette index. Width = line length; height = list length. The `0` here is treated as palette color 0 unless `colkey=0` is passed in `blt()`, in which case 0 = transparent.
 
-For Stage 5 (asset-gen), write strings line-by-line and verify incrementally with `inspect_sprite`.
+For Stage 5 (asset-gen), write strings line-by-line and verify incrementally with `inspect_image`.
 
 ## Anti-patterns in this stage
 
