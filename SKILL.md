@@ -146,5 +146,6 @@ The Stop hook (`hooks/stop_check_bundle.py`) fires at session boundary as a non-
 - Pyxel API: fetch via `pyxel://api-reference` MCP resource.
 - Pyxel examples: `pyxel://examples/<name>` MCP resources (e.g., `02_jump_game`, `09_shooter`).
 - Pyxel default palette: `pyxel://palette/default` MCP resource.
+- `run` snapshot schema: `pyxel://run-snapshots-schema` MCP resource. Read before constructing complex `run` snapshot lists.
 - pyxel-mcp tool catalog: see its loaded `instructions`.
 - Design rationale: `docs/superpowers/specs/2026-05-01-pyxel-harness-design.md`.

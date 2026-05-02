@@ -133,8 +133,9 @@ run(script="main.py", frames=600, random_seed=42, inputs=..., snapshots=...)
 
 ## Anti-patterns
 
-- Asserting only the final milestone. Intermediate asserts catch early divergence
-  cheaply — the `inputs` + `snapshots` are in a single `run` call anyway.
+- Snapshotting only the final milestone. Intermediate `state` entries cost
+  nothing extra (one `run` call) and catch divergence early — Pattern D's
+  snapshot-by-frame indexing makes intermediate entries cheap to read.
 - Verifying only the win path and skipping the lose path. The lose path is what
   proves hazards function as hazards.
 - Loose predicates ("scene changed") instead of exact values ("scene == WIN").
@@ -142,9 +143,6 @@ run(script="main.py", frames=600, random_seed=42, inputs=..., snapshots=...)
 - Listing milestone frames in `snapshots` that exceed `frames`. The `frames`
   parameter must be at least one past the last milestone frame, or the snapshot
   will not be captured.
-- Snapshotting only the final milestone. The intermediate `state` entries cost
-  nothing extra (one `run` call) and catch divergence early. Pattern D's
-  snapshot-by-frame indexing makes intermediate entries cheap to read.
 
 ## When this is done
 

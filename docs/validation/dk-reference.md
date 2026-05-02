@@ -91,10 +91,10 @@ Frame 420 (≈ 14 seconds at 30fps) is the upper bound. Faster lose-path complet
 
 ASSETS.md after Stage 4 must contain:
 
-- Player: `idle`, `walk_1`, `walk_2`, `jump`, `climb_1`, `climb_2` (6 sprites, 16x16).
+- Player: `idle`, `walk_1`, `walk_2`, `jump`, `climb_1`, `climb_2` (6 sprites, 16x16). Paired frames (`walk_1`/`walk_2`, `climb_1`/`climb_2`) laid out **horizontally** in the bank (frame_2 immediately right of frame_1) so `inspect_animation(... region_count=2, direction="horizontal")` resolves the pair.
 - Antagonist: at least `boss_idle` (32x32).
 - Goal: `princess` (16x24).
-- Hazard: `barrel_1`, `barrel_2` (16x16, paired-frame diff 5–50%).
+- Hazard: `barrel_1`, `barrel_2` (16x16, paired-frame diff 5–50%, laid out **horizontally** for `direction="horizontal"`).
 - HUD: `life_icon` (8x8).
 
 If `inspect_animation` (with `region_count=2`, `direction` matching the ASSETS.md bank layout) reports `region_diffs[0]["diff_ratio"]` outside 0.05–0.50 on any pair, gate check #4 FAILs.
