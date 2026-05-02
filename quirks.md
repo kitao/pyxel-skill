@@ -28,10 +28,10 @@ Keep this file small and high-signal. Each item below has bitten real implementa
 - The MCP harness drives input through `pyxel.set_btn(key, frame)`
   and `pyxel.set_btnv(key, val)`. Production code reads the same
   events via `btn()` / `btnp()` — no code branch needed for tests.
-- This is the entire reason `play_and_capture` and `record_gameplay`
-  can verify input-dependent logic. If your code reads input through
-  some other mechanism (e.g., directly polling SDL), tests will not
-  drive it.
+- This is the entire reason `run` (with scheduled `inputs` and
+  `screen_image` / `state` / `video` snapshots) can verify
+  input-dependent logic. If your code reads input through some other
+  mechanism (e.g., directly polling SDL), tests will not drive it.
 
 ## Audio: SE volume and tone choice
 
@@ -51,14 +51,17 @@ shell out to your own subprocess for audio rendering, set it
 explicitly. `render_audio` produces real WAV output even in dummy
 mode — the dummy driver only suppresses speaker playback.
 
-## `inspect_state` does not auto-expand deep nesting
+## `state` snapshots do not auto-expand deep nesting
 
-`inspect_state` reads attributes off the `App` instance (the class
-that calls `pyxel.run()`). It does **not** recurse into nested
-objects: `app.world.player.physics.velocity.y` will not be reachable
-even if you list it. Flatten the values you want to assert on to
-top-level App attributes (`self.player_x`, `self.player_vy`,
-`self.scene`) so the harness can read them.
+The `state` snapshot kind inside `run` reads attributes off the
+`App` instance (the class that calls `pyxel.run()`). With `attrs:
+None` (or omitted), only top-level scalar primitives are returned —
+lists, dicts, and custom objects are skipped. Dotted/indexed paths
+like `"player.x"` or `"barrels[0].y"` are followed when explicitly
+named, but **arbitrary nested chains are not auto-expanded**:
+`app.world.player.physics.velocity.y` will not be reachable as a
+single attr — name each leaf individually, or flatten to top-level
+App attributes (`self.player_x`, `self.player_vy`, `self.scene`).
 
 ## `pyxel.quit()` does not force-exit since 2.8
 
