@@ -43,22 +43,21 @@ Every task gets a `Verify:` field with **specific, observable** criteria. "Looks
 
 ```
 Verify (jump physics):
-  - inspect_state at frame 30 (after btnp KEY_SPACE at frame 5):
-      assert player.y < player_initial_y - 16
-  - inspect_state at frame 50:
-      assert player.y == player_initial_y
-      assert player.vy == 0
+  - run with inputs [{frame:5, buttons:["KEY_SPACE"]},{frame:7, buttons:[]}],
+    state snapshot at frames [30, 50]:
+      frame 30: assert player.y < player_initial_y - 16
+      frame 50: assert player.y == player_initial_y AND player.vy == 0
 
 Verify (sloped girder walk):
-  - play_and_capture inputs that hold KEY_RIGHT for 60 frames,
-    inspect_state at frames 20, 40, 60:
+  - run with inputs holding KEY_RIGHT for 60 frames,
+    state snapshot at frames [20, 40, 60]:
       for each: assert abs(player.y - expected_slope_y(player.x)) < 2
 
 Verify (ladder climb):
-  - play_and_capture hold KEY_UP at ladder x for 60 frames:
-      inspect_state milestones every 10 frames:
-        assert player.y monotonically decreases
-        assert player.y reaches platform_above.y - player_h within 60 frames
+  - run with inputs holding KEY_UP at ladder x for 60 frames,
+    state snapshot at frames [10, 20, 30, 40, 50, 60]:
+      assert player.y monotonically decreases across snapshots
+      assert player.y at frame 60 reaches platform_above.y - player_h
 ```
 
 ## Win Path Milestones table
