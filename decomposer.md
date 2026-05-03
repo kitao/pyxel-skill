@@ -10,13 +10,14 @@ Convert STRUCTURE.md "Vision" into a verifiable plan with risk isolation and mil
 
 ## Output
 
-`PLAN.md` at project root, with five sections in this order:
+`PLAN.md` at project root, with six sections in this order:
 
 1. **Risk Tasks** — features that need isolation (omit entirely if no risks identified).
-2. **Main Build** — modules + cross-cutting verify criteria.
-3. **Win Path Milestones** — input/assert table.
-4. **Lose Path Milestones** — input/assert table.
-5. **Audio Manifest** — restated from STRUCTURE.md "Vision → Audio" for downstream consumption.
+2. **Genre Identity** — 3–5 genre-defining rules with Verify predicates (`quality-gate.md` check #16).
+3. **Main Build** — modules + cross-cutting verify criteria.
+4. **Win Path Milestones** — input/assert table.
+5. **Lose Path Milestones** — input/assert table.
+6. **Audio Manifest** — restated from STRUCTURE.md "Vision → Audio" for downstream consumption.
 
 (Asset Manifest is forward-referenced — Stage 4 fills `ASSETS.md` directly.)
 
@@ -31,11 +32,78 @@ These features fail unpredictably and produce ambiguous bugs when mixed with oth
 | Ladder snap + transition | Off-by-one on platform transition causes either fall-through or refusal-to-mount |
 | Object-on-tilted-girder rolling | Direction depends on slope sign; flip at edge or fall when running off; AI implementations frequently get the off-edge fall wrong |
 | Multi-state animation transitions | walk → jump → land state machine with frame timing; easy to leave stuck-in-jump or flickering |
-| Closed-loop input simulation | Open-loop key sequences drift over long playthroughs (200+ frames) |
-| Headless audio determinism | Sounds defined but not heard in `render_audio` because the timing slot was not populated before the game loop start |
-| Image bank initialization order | `pyxel.images[N].set` must run before any `blt`; AI sometimes puts sprite definitions inside `update()` |
 
-Anything *not* in this list is Main Build — implement directly, no isolation.
+Anything *not* in this list is Main Build — implement directly, no isolation. Note: closed-loop input simulation, headless audio determinism, and image-bank init order are **harness concerns**, not game features — `test-harness.md` (Pattern C), `render_audio`, and `validate` (`assets_in_update`) cover them. Do not allocate Risk Tasks for them.
+
+## Genre identity
+
+A 15/17 mechanics PASS proves the game does not crash, has scenes,
+reaches milestones, and has a non-empty background. It does NOT
+prove the game is the genre the user asked for. The previous
+validation cycle taught this: a 15/15 PASS "Donkey Kong style
+platformer" shipped without a hammer, with ladders that could be
+jump-bypassed, with barrels at unrealistic speed — and passed every
+mechanical check.
+
+The `## Genre Identity` section captures the genre-defining rules
+that mechanic checks miss.
+
+For the declared genre, list **3–5 mechanics that define the genre**.
+Each gets a `Verify:` predicate testable via `run` snapshots.
+`quality-gate.md` check #16 evaluates each; if PLAN.md lacks the
+section or any predicate fails, the gate FAILs.
+
+Example for a Donkey Kong-style platformer:
+
+````markdown
+## Genre Identity
+
+### L1. Ladders are the only floor-to-floor path.
+- **Why genre-defining:** DK's core risk/reward is choosing when to
+  climb. If the player can jump from floor N to floor N+1, ladders
+  become decorative.
+- **Verify:** at frame F (mid PLAY) hold `KEY_SPACE` for 5 frames
+  with no `KEY_UP`. Player.y must NOT decrease by more than one
+  floor height (`girder_pitch_y`) — a jump cannot bypass the next
+  girder up. Run with two starts: under a girder, and at the edge.
+
+### L2. Hammer pickup grants temporary invincibility, visible.
+- **Why genre-defining:** DK's only offensive answer to barrels.
+  Without it the game has no risk-reward inversion.
+- **Verify:** at frame F where player overlaps the hammer pickup,
+  `inspect_image` at player position shows the hammer-carry sprite
+  (not walk). For the next K frames (PLAN.md `HAMMER_DURATION`),
+  barrel collisions do not decrement `lives` (assert via `state`
+  snapshot: `lives` at F+K-1 == `lives` at F).
+
+### L3. Barrels respect girder slopes.
+- **Why genre-defining:** static barrels look like blocks; rolling
+  barrels are the genre's pace. Slopes signal gravity direction.
+- **Verify:** capture `state` with `attrs=["barrels[0].x",
+  "barrels[0].y"]` at frames F, F+30, F+60, F+90. `barrels[0].x`
+  must change monotonically along the slope sign of the girder
+  it is on.
+````
+
+If the genre's mechanics are unclear from the user brief, **ask the
+user before continuing**. Do not guess and ship; this is the section
+the gate cannot recover from automatically.
+
+Genre identity rule starters worth considering:
+
+- **Platformer:** are ladders / pickups / power-ups present? Does
+  jump have a height cap (no double-jump, no skip-floor)?
+- **Shoot-em-up:** do bullets persist a finite distance, not
+  forever? Do enemies spawn from off-screen, not in the player's
+  lap?
+- **Puzzle:** does the win condition require player input across
+  N steps, or can a single key press solve it?
+- **Racing / endless runner:** does the world scroll faster than
+  the player can catch up? Are obstacles spaced for a reaction
+  window of at least 12 frames at 30 FPS?
+- **Beat-em-up:** is there a hit-stop / hitstun signature on
+  successful hits? Are enemy AI states (idle / approach / attack)
+  visibly distinct?
 
 ## Verify criteria — required structure
 
@@ -112,6 +180,18 @@ Standing still must lead to GAME_OVER within 10–14 seconds at the configured f
 
 (Omit the entire "Risk Tasks" section if no risks identified.)
 
+## Genre Identity
+
+### L1. <genre-defining mechanic>
+- **Why genre-defining:** <one sentence — what would the game lose if this mechanic were absent?>
+- **Verify:** <observable predicate evaluated via `run` snapshots — see the example earlier in this file>
+
+### L2. ...
+
+### L3. ...
+
+(Required. At least 3 rules. The gate's check #16 evaluates each.)
+
 ## Main Build
 
 ### Modules
@@ -147,8 +227,9 @@ Standing still must lead to GAME_OVER within 10–14 seconds at the configured f
 
 ## When this stage is done
 
-- `PLAN.md` exists at project root with all five sections populated.
+- `PLAN.md` exists at project root with all six sections populated.
 - Risk Tasks (if any) each have Why / Approach / Verify / Status.
+- **Genre Identity** has at least 3 rules each with a Why / Verify predicate, evaluable via `run` snapshots.
 - Main Build has at least one Module and at least the cross-cutting Verify list.
 - Both Win Path and Lose Path tables have at least 5 rows including the start frame and the terminating-scene frame.
 - Audio Manifest has one row per declared SE / BGM channel.
