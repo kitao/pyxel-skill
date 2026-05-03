@@ -20,20 +20,23 @@ For each entry in ASSETS.md, in the order they appear:
 
 1. Write the hex-string sprite data into `_build_assets()` (or a helper called from it).
 2. Run `validate` to catch syntax errors in the hex strings (wrong length, missing comma, bad indent).
-3. Run `inspect_image` at the asset's bank coordinates to dump pixels.
-4. **Look at the pixels.** Does the silhouette match the `represents:` description? Are color regions distinguishable?
-5. If FAIL — rewrite the hex strings. Don't move on. Catch one bad sprite before writing 10 of them.
+3. Run `inspect_image` at the asset's bank coordinates **with `render_path=`** so it writes a PNG of the rendered region alongside its aggregate fields.
+4. **Open the PNG with the `Read` tool and verbalize what you see in 1 sentence** (e.g., `"Mario in red cap and blue overalls, mid-stride, identifiable"` or `"indistinct red blob, no features visible"`). The Pyxel canvas at sprite resolution is small enough that the multimodal LLM can read every pixel directly. Then compare your verbalization to the entry's `represents:` description in ASSETS.md. The `inspect_image` aggregate fields (`color_count`, `fill_ratio`) are necessary but not sufficient — recognizability requires the agent's own eyes (SKILL.md Anti-shortcut rule #9, applied at sprite scope).
+5. If the rendered sprite does not match the `represents:` description (single-color blob, wrong silhouette, missing features, palette confusion), rewrite the hex strings. Don't move on. Catch one bad sprite before writing 10 of them.
 
 Concretely, for one asset:
 
 ```python
 # After editing main.py to add player_walk_1:
 validate(script="main.py")
-inspect_image(script="main.py", image=0, x=0, y=0, w=16, h=16)
-# Look at the output grid. Is it Mario, or a blob?
+inspect_image(script="main.py", image=0, x=0, y=0, w=16, h=16,
+              render_path="tmp/player_walk_1.png")
+# Then: Read("tmp/player_walk_1.png")
+# Verbalize: "Red-capped figure, two arm positions distinguishable,
+#             two legs with shoe outline. Identifiable as Mario."
 ```
 
-Note that `inspect_image` returns `pixels` only when the requested region's area ≤ 4096 (per spec §6.4.1 / §7.2). For 16x16 sprites, pixels is included; for the full 256x256 bank, pixels is None.
+Note that `inspect_image` returns the `pixels` palette-index grid inline only when the requested region's area ≤ 4096 (per spec §6.4.1 / §7.2). For 16x16 sprites the grid is included; for the full 256x256 bank it is `None`. The `render_path` argument always writes the PNG regardless — it is the agent-readable artifact and is mandatory for the Read step above.
 
 ## Sprite identity heuristics
 
@@ -169,7 +172,8 @@ If non-zero pixels are at (0,0), move the offending sprite to a different bank l
 
 - **Generating sprites in `update()` instead of `_build_assets()`.** Either runs every frame (perf disaster) or runs after `pyxel.run()` starts and is invisible to `inspect_image` for the first few frames.
 - **"Add it later" placeholders:** `pyxel.rect(x, y, 8, 8, 8)` in `draw()` instead of `pyxel.blt(...)`. The asset manifest declares a sprite; the draw call must `blt` from it. Asset-gen was skipped — the gate FAILs check #4.
-- **Bulk-edit then bulk-verify.** Edit one sprite, run `inspect_image`, look at the grid, fix, then move on. Editing 10 sprites before running `inspect_image` once means 10 broken sprites to triage at once.
+- **Bulk-edit then bulk-verify.** Edit one sprite, run `inspect_image` with `render_path=`, `Read` the PNG, verbalize observation, fix, then move on. Editing 10 sprites before reviewing means 10 broken sprites to triage at once. The Read step is non-negotiable — see SKILL.md rule #9.
+- **Trusting `color_count` / `fill_ratio` without Reading the PNG.** Aggregate metrics certify "5 colors used" but not "the sprite reads as Mario". A 5-color sprite of a random pattern passes the aggregate check; the multimodal `Read` is the recognizability gate.
 - **Forgetting `colkey=0` in `blt()` calls.** The transparent background of the sprite renders opaque (palette index 0). `validate` warns about missing `colkey` — fix it.
 - **Computing diffs yourself.** `inspect_animation` returns `diff_ratio` via `region_diffs[0]["diff_ratio"]`; always specify `region_count` and `direction` explicitly. Don't read raw `pixels` arrays and XOR them — the harness already did the math.
 
