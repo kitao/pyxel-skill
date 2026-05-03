@@ -25,11 +25,13 @@ Run checks in numeric order:
 2. **Asset (#4, #7–#9, #11)** — single tool calls per asset; cheap relative to playthroughs.
 3. **Gameplay (#5, #6, #10)** — `run` calls of the full win/lose path with `inputs` + `state` snapshots. Most expensive.
 4. **Bundle (#12)** — verify `capture.md` produced the deliverable.
-5. **Scene visuals (#14, #15)** — short `run` calls with `screen_grid` snapshots at PLAY frame 119 and at WIN/GAME_OVER entry+30. Cheap; they share the playthrough infrastructure but read pixel grids rather than state.
+5. **Scene visuals (#14, #15)** — short `run` calls with `screen_grid` snapshots at PLAY early/mid/late frames and at WIN/GAME_OVER entry+30. Cheap; they share the playthrough infrastructure but read pixel grids rather than state. #14 also calls `compare_frames` for the dead-time check.
+6. **Genre identity (#16)** — `run` calls evaluating each PLAN.md `## Genre Identity` rule's Verify predicate. Comparable cost to #5/#6 since the predicates use `run` snapshots.
+7. **Agent visual review (#17)** — agent (you) `Read`s each bundle frame PNG and verbalizes observations. Costs context tokens, not tool calls. Run last because it depends on the bundle (#12) and gives the agent's own multimodal judgment as the closing gate.
 
 Stop and write gate-report.json with the FAIL even if later checks would have passed. Partial reports are valid input for routing — there is no benefit in running #5 and #6 when #2 or #3 has already failed.
 
-## Stop conditions (flat list — all 15 must PASS)
+## Stop conditions (flat list — all 17 must PASS)
 
 | # | Check | How (concrete pyxel-mcp calls) | FAIL routes to |
 |---|-------|--------------------------------|----------------|
@@ -46,8 +48,10 @@ Stop and write gate-report.json with the FAIL even if later checks would have pa
 | 11 | Layout balance | TITLE: `run(script="main.py", frames=60, snapshots=[{"frame": 30, "kind": "layout"}])` returns `snapshots[0]["h_balance"] ≥ 0.70`. (Frame 30 lets the TITLE blink prompt and any intro animation settle.) For text-less PLAY scenes, fall back to `{"frame": F, "kind": "screen_grid"}` and assert that no quadrant of the returned `grid` is empty | scaffolding |
 | 12 | Proof bundle | `screenshots/result/<N>/` directory exists with `win-path.gif`, `lose-path.gif`, `frames/`, `audio/` — see `capture.md` | bundle |
 | 13 | Tilemap trap clean | `inspect_tilemap(script="main.py", tilemap=N)` returns `trap_warning: False` for every tilemap declared in STRUCTURE.md. The trap fires when a tilemap uses tile `(0,0)` AND the source bank's `(0,0)` tile has visible content. Route to sprite-quality if the source-bank `(0,0)` is non-empty; route to scaffolding if the tilemap usage is wrong | sprite-quality / scaffolding |
-| 14 | Background non-empty | PLAY frame 119 (well after INTRO/transition) must show variety beyond a flat single-color void. `run(script="main.py", frames=120, inputs=[{"frame":1,"buttons":["KEY_SPACE"]},{"frame":3,"buttons":[]}], snapshots=[{"frame":119,"kind":"screen_grid","bbox":[0,0,W,H]}])`, then assert the returned `grid` contains at least 2 distinct dark-layer palette indices. The dark layer is `inspect_palette`'s bg layer (default-palette bg = `{0,1,5}`); fall back to that set if `inspect_palette` was not run. The PLAY scene need not have a parallax skyline — but it must show texture, gradient, twinkling stars, scaffolding pattern, etc. | scaffolding / asset-planning |
+| 14 | Background non-empty + no dead-time | (a) PLAY frame 119 (well after INTRO/transition) must show variety beyond a flat single-color void. `run(...)` with `screen_grid` snapshot at frame 119, then assert the returned `grid` contains at least 2 distinct dark-layer palette indices (default-palette bg = `{0,1,5}`; fall back to that set if `inspect_palette` was not run). The PLAY scene need not have a parallax skyline — but it must show texture, gradient, scaffolding pattern, etc. (b) PLAY scene must not stall mid-bundle. Capture three `screen_image` frames at PLAY early/mid/late within the win-path (e.g., frames 90, 240, 420), then call `compare_frames(frame_a=early, frame_b=mid)` and `compare_frames(frame_a=mid, frame_b=late)`. **Both pairs must return `identical: False` AND `ratio > 0.05`.** Identical PLAY frames mid-bundle indicates a dead-time signature (frozen entity, frozen camera, broken state) and is FAIL even if (a) passes. | scaffolding / asset-planning / playthrough |
 | 15 | Scene transitions are visual | WIN and GAME_OVER scenes must contain at least one sprite blit (not just `pyxel.text` on `cls(0)`). `run(script="main.py", frames=<scene_entry_frame+30>, inputs=<inputs leading to WIN or GAME_OVER>, snapshots=[{"frame":<scene_entry_frame+30>,"kind":"screen_grid","bbox":[0,0,W,H]}])`, then assert the returned `grid` contains at least 5 distinct palette indices total (text alone on cls produces 2 — bg + text color; sprites add at least 3 more layers). Run for both WIN and GAME_OVER scenes; both must pass | scaffolding |
+| 16 | Genre identity | PLAN.md must declare a `## Genre Identity` section with at least 3 rules specific to the declared game genre, each with a `Verify:` predicate testable via `run` snapshots (see `decomposer.md` for the section's required structure). The gate evaluates each predicate against a `run` result. Example for a Donkey-Kong-style platformer: "ladders are the only floor-to-floor path (jump cannot bypass a girder above by more than 1 floor height)", "hammer pickup grants temporary invincibility (sprite swap visible AND barrel collision is no-op for K frames)", "barrels respect girder slopes (barrel.x changes monotonically along the slope sign)". If PLAN.md lacks the section, FAIL routes to `spec`; if any Verify predicate fails, FAIL routes to `playthrough`. | spec / playthrough |
+| 17 | Agent visual review | Read each `screenshots/result/<N>/frames/{title,play_start,mid_game,win,game_over}.png` with the `Read` tool. For each frame, write a 1–2 sentence agent-authored observation covering sprite identity (per ASSETS.md `represents:`), scene state (per the corresponding PLAN.md milestone), HUD content, animation state, and background. Record the observations in `gate-report.json["agent_review"]` keyed by frame name. Empty values, generic boilerplate ("looks fine", "scene shown"), or descriptions that contradict ASSETS.md `represents:` strings or PLAN.md milestone descriptions = FAIL. This is SKILL.md Anti-shortcut rule #9 enforcement — tool checks certify mechanics, agent verbalization certifies recognizability. See `capture.md` "Pre-handoff agent review" for the procedure. | playthrough / sprite-quality / scaffolding |
 
 ## Computing the difficulty-floor frame window (#10)
 
@@ -89,10 +93,19 @@ One row per check. The gate writes this file regardless of PASS/FAIL — it is t
     {"id": 11, "label": "Layout balance", "result": "PASS", "evidence": "TITLE H-balance 81%"},
     {"id": 12, "label": "Proof bundle", "result": "PASS"},
     {"id": 13, "label": "Tilemap trap clean", "result": "PASS"},
-    {"id": 14, "label": "Background non-empty", "result": "PASS", "evidence": "PLAY frame 119 grid has 4 distinct dark-layer indices"},
-    {"id": 15, "label": "Scene transitions are visual", "result": "PASS", "evidence": "WIN frame N+30 grid: 7 distinct indices; GAME_OVER frame M+30 grid: 6 distinct indices"}
+    {"id": 14, "label": "Background non-empty + no dead-time", "result": "PASS", "evidence": "PLAY frame 119 grid has 4 distinct dark-layer indices; play_start vs mid_game ratio=0.31, mid_game vs late ratio=0.18"},
+    {"id": 15, "label": "Scene transitions are visual", "result": "PASS", "evidence": "WIN frame N+30 grid: 7 distinct indices; GAME_OVER frame M+30 grid: 6 distinct indices"},
+    {"id": 16, "label": "Genre identity", "result": "PASS", "evidence": "L1 (jump cannot bypass girder) passed; L2 (hammer invincibility) passed; L3 (barrel slope) passed"},
+    {"id": 17, "label": "Agent visual review", "result": "PASS", "evidence": "5 frames Read; observations recorded in agent_review section"}
   ],
-  "summary": {"pass": 14, "fail": 1, "total": 15}
+  "agent_review": {
+    "title": "TITLE scene with the game name centered, 'PRESS SPACE' blinking below, no gameplay sprites visible",
+    "play_start": "Mario in red cap and blue overalls at bottom-left girder; DK boss at top with scaffolding visible; princess and 'HELP!' text on top platform; HUD shows 1UP 0000 / HIGH 0000 / L=01",
+    "mid_game": "Mario climbing ladder on girder 3; one barrel mid-air falling between girders 1 and 2; another rolling on girder 2; HUD shows score 0300, lives 3",
+    "win": "Mario adjacent to princess on top platform; 'YOU WIN!' overlay text visible; HUD shows final score 8500",
+    "game_over": "Mario sprite shows death frame at floor; 'GAME OVER' overlay text; HUD shows score 1200, lives 0"
+  },
+  "summary": {"pass": 16, "fail": 1, "total": 17}
 }
 ```
 
@@ -110,6 +123,7 @@ These are the cheats the gate is built to catch. Read them before writing the ga
 6. **"`trap_warning: True` is a silent killer."** Tilemap (0,0) trap means every "empty" cell shows a sprite. The visual artifact is "stair-step pattern across empty space" — easy to miss in a small screenshot, fatal in a 256x256 tilemap. Check #13 catches it.
 7. **No mid-attempt threshold relaxation.** If a check threshold is wrong, change it BEFORE a run begins, not during. CI for skill should reject diffs to quality-gate.md thresholds during an active validation attempt. Mid-run threshold changes are documented in `gate-report.json["threshold_overrides"]` and trigger automatic FAIL of the affected check unless the threshold is restored.
 8. **No unseeded gate playthroughs.** Win/lose paths use `random_seed=42` unless PLAN.md declares an alternative. If a script reads `random_seed=None` and the gate runs unseeded (i.e., `result["seeded"] is False`), mark #5 / #6 FAIL with reason `"non-deterministic playthrough"` — even if the snapshot at the final milestone *happens* to satisfy the predicate this attempt, the next run may not. Determinism is a precondition for the gate, not an optimization.
+9. **No bundle without honest agent review.** A 17/17 PASS gate-report.json with `agent_review` empty, boilerplate ("looks fine", "scene shown"), or contradicting ASSETS.md `represents:` strings is a contradiction in terms — check #17 should have FAILed. Fabricating observations to skip the review is the deepest form of the shortcut this gate exists to prevent: tool checks certify mechanics, agent verbalization certifies recognizability, and the harness needs both to certify "playable". The previous validation cycle taught the project that 15/15 mechanics PASS produced "100 中 5" gameplay because the agent never looked at a frame. Run the agent visual review honestly; if a frame is wrong, route to fix and re-run.
 
 ## What happens on FAIL
 
@@ -133,7 +147,7 @@ If multiple checks FAIL, route to the earliest-stage owner first (e.g., #4 sprit
 
 ## When this gate PASSes
 
-All 15 checks PASS in gate-report.json. Then:
+All 17 checks PASS in gate-report.json. Then:
 
 - `PLAN.md` shows all milestone rows marked `done` with verified-by notes.
 - `MEMORY.md` has any non-obvious gotchas captured for next session.
