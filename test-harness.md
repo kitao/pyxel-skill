@@ -124,8 +124,21 @@ a single open-loop schedule cannot be made deterministic.
 ## Test fixture considerations
 
 Pyxel reads input via `pyxel.btnp` / `pyxel.btn`. The harness's `apply_to_pyxel`
-(called from `run`'s frame loop) drives Pyxel's set_btn / set_btnv API directly —
-production code does not need test-aware branching to be testable.
+(called from `run`'s frame loop) drives Pyxel's `set_btn` / `set_btnv` API
+directly, in the same OS process as the script. There is no cross-process
+keyboard emulation; combined with `random_seed`, this gives frame-precise
+deterministic input replay. Production code does not need a separate
+"capture mode" branch to be testable — the gate's playthroughs use the same
+code path the player will run.
+
+This differs from godogen-Bevy's recommendation (which warns against "fake
+key presses" and prefers a deterministic capture-time control mode in the
+game itself). Bevy's warning targets cross-process input emulation under
+`xvfb` or virtual displays, where timing drifts and edge cases compound.
+Pyxel-mcp closes that gap structurally — `set_btn` writes the same input
+ring buffer that `pyxel.btn` reads, on the same frame, in the same process.
+Drift, when it occurs, comes only from physics over long horizons, which is
+what Pattern C (cumulative-replay) is for.
 
 For frame-based logic that needs determinism (random spawn timing, particle scatter),
 `run` accepts `random_seed: int` which seeds Pyxel's RNG (`pyxel.rseed`) at the
