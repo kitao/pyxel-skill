@@ -153,10 +153,62 @@ render_audio(script="main.py", target={"music": 0},
 - Bundle whose middle 80% is the same frame (game stalled). `compare_frames(frame_a=mid_frame_path, frame_b=late_frame_path)` returns `identical: True` only if pixels are bit-identical. For middle-of-bundle stall checks, capture two frames in the visually-active range and assert `identical: False`. (`region` is `None` when identical, so the check needs both `identical` and `size_match`.) (Pattern G)
 - Re-attempt regression checks (Pattern G). When iterating, compare a representative frame from the previous bundle (`screenshots/result/<N-1>/frames/mid_game.png`) to the same frame in the new bundle (`screenshots/result/<N>/frames/mid_game.png`). Drift confirms a fix moved things; identical pixels mean the fix did not change the visible state. Useful as a sanity check before running the full gate.
 
+## Pre-handoff agent review
+
+After `screenshots/result/<N>/` is produced, before calling the
+gate or reporting to the user, agent (you) must inspect the bundle
+visually. This is the harness's enforcement of SKILL.md Anti-shortcut
+rule #9 — tool-based checks certify *mechanics*; only the agent's own
+eyes certify *recognizability* and *playability*.
+
+Procedure:
+
+1. List the frame files: `screenshots/result/<N>/frames/*.png` (typically
+   `title.png`, `play_start.png`, `mid_game.png`, `win.png`,
+   `game_over.png`).
+2. For each PNG, use the `Read` tool to open it. The Pyxel canvas is
+   small (e.g., 224×256), so the multimodal LLM can read every pixel.
+3. Verbalize observation in 1–2 sentences per frame, covering:
+   - **Sprite identity** — does the player sprite look like Mario /
+     Princess / declared character per ASSETS.md `represents:`? Or is
+     it a single-color rectangle, an unrecognizable blob, or the wrong
+     sprite swapped in?
+   - **Scene state** — is this TITLE / PLAY / WIN / GAME_OVER as the
+     PLAN.md milestone for this frame implies?
+   - **HUD content** — score, lives, level, "PRESS SPACE" prompts —
+     all visible, legible, no overflow, no overlap with gameplay sprites?
+   - **Animation state** — is the player mid-stride / climbing / jumping
+     / falling / dead as the milestone implies?
+   - **Background and hazards** — is the playfield populated (girders,
+     ladders, pickups, hazards) or mostly empty? Are barrels / enemies
+     in plausible positions?
+4. Compare each verbalization against the corresponding PLAN.md
+   milestone description. Note divergences explicitly: "milestone
+   says barrel near floor at frame 200, observation: barrel still on
+   girder 1".
+5. **If any frame shows a defect** — missing sprite, wrong scene,
+   static animation, placeholder rectangle, illegible HUD, unexpected
+   color blob, recognizability failure, dead-time signature — return
+   to `task-execution.md` (or earlier stage if upstream:
+   `asset-gen.md` for sprite identity, `scaffold.md` for scene
+   routing, `decomposer.md` for milestone alignment). **Do NOT
+   proceed to the gate without a fix.**
+6. When all frames pass agent visual review, the verbalizations
+   become input to the gate's check #16 (Agent visual review),
+   which records them in `gate-report.json["agent_review"]`.
+
+The previous validation cycle taught the project that 15/15
+mechanics PASS can still produce "100 中 5" gameplay if the agent
+never looked at a single frame. This step is the harness's
+correction. It is NOT optional.
+
 ## When this is done
 
 `screenshots/result/<N>/` exists with all required artifacts:
 both GIFs, the five frame snapshots, one WAV per audio manifest
-entry, and `notes.md`. The counter `<N>` is the next integer
-above the previous bundle. Return to `task-execution.md` (which
-hands off to `quality-gate.md`).
+entry, and `notes.md`. **Pre-handoff agent review has been
+performed** — agent has Read each frame and verbalized
+observations against PLAN.md milestones, with no unresolved
+divergence. The counter `<N>` is the next integer above the
+previous bundle. Return to `task-execution.md` (which hands off
+to `quality-gate.md`).
