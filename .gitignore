@@ -10,7 +10,7 @@ Thumbs.db
 *.swp
 *~
 
-# Python (for hooks/)
+# Python
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -20,6 +20,8 @@ venv/
 # Test / scratch
 *.log
 /tmp/
+
+# Local agent scratch; ignored so it never becomes public skill content.
 superpowers/
 docs/superpowers/
 /pyxel-skill

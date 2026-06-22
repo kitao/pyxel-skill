@@ -1,39 +1,22 @@
 # pyxel-skill
 
-Standalone distribution of the Pyxel workflow skill. It is kept aligned with the skill bundled in [`pyxel-mcp`](https://github.com/kitao/pyxel-mcp), but can be installed directly into a host skill directory.
+Standalone Pyxel game-building skill. It is intentionally small: modern models get more value from tight observation loops than from a large prescribed pipeline.
 
-This skill orchestrates the workflow; pyxel-mcp (≥ 1.0.0) provides the 9 observation verbs (`run`, `validate`, `read_*`, `diff_frames`, `pyxel_info`). Quality verification is the agent's responsibility — the agent asserts predicates directly in Python against `state` snapshots and visually reviews captured PNG bundles against PLAN.md / ASSETS.md anchors. There are no judge tools or engine-wide taste scores.
+`pyxel-skill` decides what to build and how to verify it. `pyxel-mcp >= 1.0.0` supplies the observation tools: `run`, `validate`, `pyxel_info`, `read_palette`, `read_image`, `read_animation`, `read_tilemap`, `read_audio`, and `diff_frames`.
 
 ## Status
 
-`v1.1.0` — built on top of pyxel-mcp's 1.0 9-tool surface. 7-stage pipeline; compact quality gate; proof bundle with visual review before handoff.
+`v1.1.0` targets pyxel-mcp 1.0.0 and Pyxel 2.9.6+. The default skill is three public files:
 
-## Pipeline
+- `SKILL.md`: trigger, default loop, minimum verification, boundaries.
+- `strict-mode.md`: optional release/audit evidence bundle.
+- `pyxel-notes.md`: concise Pyxel footguns.
 
-```
-visual-target  →  decomposer  →  scaffold  →  asset-planner  →  asset-gen
-                                                                     ↓
-                                              quality-gate  ←  task-execution
-```
-
-Each stage writes / refines persistent state at project root (`PLAN.md`, `STRUCTURE.md`, `ASSETS.md`, `MEMORY.md`) so long sessions survive context compaction. Stage entry checks the existing files and resumes where you left off.
-
-The quality gate is the **single source of "done"**. It runs 11 stop conditions: state files exist, validate clean, smoke run, win-path variability, lose-path direct asserts, difficulty floor, audio peaks + notes, proof bundle integrity, tilemap trap clean, genre-identity Python predicates, and agent visual review that catches static bundles. Emits `screenshots/result/<N>/gate-report.json`. The agent cannot self-certify completion — only a clean gate passes.
-
-## Anti-shortcut enforcement
-
-Built-in guard rails (see `SKILL.md`'s "Anti-shortcut rules"):
-
-- **Visual primacy** — when code says X happened but the captured frame shows Y, the capture wins.
-- **No asset fallback** — a solid placeholder in place of a declared sprite means asset-gen was skipped; gate FAILs.
-- **No "looks fine"** — every Verify is a specific Python predicate against an observed value.
-- **Bundle integrity** — a bundle whose first 3 seconds are correct and the rest is static is FAIL, not partial pass.
-- **No bundle, no done** — `screenshots/result/<N>/` with win/lose path media, frame PNGs, audio WAVs is the precondition for declaring complete.
-- **No user-handoff without agent visual review** — agent must `Read` every bundle frame and verbalize against PLAN.md milestones before the gate PASSes.
+There is no default proof-bundle requirement, no stage pipeline, and no bundled stop hook. Use strict mode only when the user asks for release-grade evidence or the project size warrants it.
 
 ## Install
 
-First ensure `pyxel-mcp >= 1.0.0` is registered as an MCP server under the `pyxel` namespace:
+Register pyxel-mcp first:
 
 ```json
 {
@@ -52,57 +35,21 @@ test ! -e ~/.claude/skills/pyxel
 ln -s ~/src/pyxel-skill ~/.claude/skills/pyxel
 ```
 
-If `~/.claude/skills/pyxel` already exists, move or remove it before installing. Choose one install path; do not overlay the standalone skill and the bundled copy at the same target.
+pyxel-mcp also ships a bundled copy for users who prefer `publish-skill`; that copy is versioned with pyxel-mcp, not with this standalone release.
 
-Alternative: install the bundled pyxel-mcp 1.0 workflow content:
-
-```bash
-mkdir -p ~/.claude/skills
-test ! -e ~/.claude/skills/pyxel
-uvx pyxel-mcp publish-skill ~/.claude/skills/pyxel
-```
-
-Restart your client. The skill activates on phrases like "make a Pyxel game", "build a retro shooter", or "create a pixel-art platformer in Pyxel".
-
-Optional: install the Stop hook for a non-blocking tripwire if the quality gate is skipped:
-
-```bash
-~/.claude/skills/pyxel/hooks/install.sh
-```
-
-The hook installer is idempotent.
+Restart the client after installing.
 
 ## Use
 
-Activate the skill by asking your client:
+Ask for a Pyxel game or a Pyxel-game change. The skill should produce a playable slice, run `validate`, run the game headlessly, capture at least one frame, inspect the PNG, and report exact commands/results.
 
-> Make a compact arcade platformer in Pyxel.
-
-The skill walks the 7-stage pipeline, calls pyxel-mcp tools at each verification point, and produces a `screenshots/result/<N>/` proof bundle. A typical end-to-end run is hundreds of `run` / `read_*` / `diff_frames` calls — fast because pyxel-mcp's headless mode is sub-second per playthrough.
-
-## Repo layout
-
-```
-SKILL.md                    Pipeline orchestrator
-visual-target.md            Stage 1: art direction + Vision
-decomposer.md               Stage 2: PLAN.md (risks + milestones + Genre Identity)
-scaffold.md                 Stage 3: STRUCTURE.md + main.py skeleton
-asset-planner.md            Stage 4: ASSETS.md sprite manifest
-asset-gen.md                Stage 5: hex-string sprites + per-sprite verify
-task-execution.md           Stage 6: gameplay implementation loop
-quality-gate.md             Stage 7: 11 stop conditions + gate-report.json
-test-harness.md             (reference) win/lose path playthrough patterns
-capture.md                  (reference) proof-bundle production
-quirks.md                   (reference) Pyxel API gotchas
-knowledge/                  Topical: pixel-art, background, game-feel, audio, patterns
-hooks/                      Stop hook + idempotent installer
-```
+For release-level confidence, ask explicitly for strict mode or a proof bundle.
 
 ## Compatibility
 
-| skill | pyxel-mcp | Pyxel   | Python |
-|-------|-----------|---------|--------|
-| 1.1.0 | ≥ 1.0.0   | ≥ 2.9.6 | ≥ 3.10 |
+| pyxel-skill | pyxel-mcp | Pyxel | Python |
+|---|---|---|---|
+| 1.1.0 | >= 1.0.0 | >= 2.9.6 | >= 3.10 |
 
 ## License
 

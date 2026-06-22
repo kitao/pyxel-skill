@@ -1,46 +1,27 @@
 # pyxel-skill Architecture
 
-`pyxel-skill` is a progressive-disclosure skill for building complete Pyxel games. It gives the agent a production workflow; `pyxel-mcp` supplies the observation tools.
+`pyxel-skill` is the decision layer for Pyxel game work. It stays lean by delegating observation to `pyxel-mcp` and leaving game-specific judgment to the model.
 
 ## Role Split
 
-- **Skill:** plan the game, decompose risky mechanics, maintain project state files, choose task-specific assertions, inspect visual artifacts, and decide whether the result satisfies the user's brief.
+- **Skill:** choose scope, keep the build loop honest, select genre-specific predicates, inspect captured frames, and decide whether the result satisfies the user's brief.
 - **MCP:** run Pyxel headlessly, schedule inputs, capture snapshots, read Pyxel resources, render audio, diff frames, and expose Pyxel docs/resources.
 - **Pyxel:** remains the engine and source of truth for APIs, examples, editors, packaging, and runtime behavior.
 
-The skill intentionally does not define new MCP tools, mutate client configuration, or replace Pyxel documentation.
+The skill intentionally does not add MCP tools, mutate client configuration, enforce universal quality scores, or replace Pyxel documentation.
 
 ## Loading Model
 
-`SKILL.md` is the entry point. It contains only the trigger, runtime requirements, pipeline map, resume rules, and anti-shortcut rules. Stage files are read just in time:
+The default public surface is:
 
-| Stage | File | Output |
+| File | Purpose | When to read |
 |---|---|---|
-| 1 | `visual-target.md` | visual direction and first `ASSETS.md` / `STRUCTURE.md` anchors |
-| 2 | `decomposer.md` | `PLAN.md` with risks, milestones, and genre identity |
-| 3 | `scaffold.md` | runnable `main.py`, structure notes, project marker |
-| 4 | `asset-planner.md` | sprite/audio manifest |
-| 5 | `asset-gen.md` | image-bank assets verified with `read_image` / `read_animation` |
-| 6 | `task-execution.md` | gameplay implementation and milestone verification |
-| 7 | `quality-gate.md` | proof bundle and `gate-report.json` |
+| `SKILL.md` | Trigger, default loop, minimum verification, boundaries | Always |
+| `strict-mode.md` | Evidence bundle and release/audit checks | Only when requested or warranted |
+| `pyxel-notes.md` | Pyxel-specific footguns | Only when touching the relevant API |
 
-Reference files (`test-harness.md`, `capture.md`, `quirks.md`, `knowledge/*`) are loaded only when a stage asks for them.
+The skill no longer ships a stage pipeline, topical knowledge directory, or stop hook. Those created too much policy before the model had observed the actual game.
 
-## Tool Surface
+## Verification Contract
 
-Requires `pyxel-mcp >= 1.0.0` with these 9 tools:
-
-`run`, `validate`, `pyxel_info`, `read_palette`, `read_image`, `read_animation`, `read_tilemap`, `read_audio`, `diff_frames`.
-
-No `judge_*` tools are part of the contract. Quality is asserted by the agent against observed values and visual artifacts.
-
-## Persistent Game State
-
-The generated game project owns these files:
-
-- `PLAN.md`
-- `STRUCTURE.md`
-- `ASSETS.md`
-- `MEMORY.md`
-
-They survive context compaction and drive resume behavior. They are not repository metadata for `pyxel-skill` itself.
+A normal game task needs `validate`, at least one smoke `run`, at least one visually inspected `screen_image`, and one predicate from state or resource observations. Larger tasks can add strict-mode evidence, but strict mode is an escalation path, not the default.
