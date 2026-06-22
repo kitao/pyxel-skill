@@ -35,8 +35,6 @@ test ! -e ~/.claude/skills/pyxel
 ln -s ~/src/pyxel-skill ~/.claude/skills/pyxel
 ```
 
-pyxel-mcp also ships a bundled copy for users who prefer `publish-skill`; that copy is versioned with pyxel-mcp, not with this standalone release.
-
 Restart the client after installing.
 
 ## Use

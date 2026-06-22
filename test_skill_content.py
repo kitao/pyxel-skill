@@ -38,6 +38,8 @@ STALE_PATTERNS = [
     "15-check",
     "docs/superpowers",
     "superpowers/",
+    "publish-skill",
+    "bundled copy",
 ]
 
 
@@ -108,3 +110,30 @@ def test_audio_examples_include_output_path():
 def test_superpowers_scratch_dirs_are_not_present():
     assert not (ROOT / "superpowers").exists()
     assert not (ROOT / "docs" / "superpowers").exists()
+
+
+def test_skill_repo_has_no_mcp_server_or_bundled_distribution_surface():
+    forbidden_paths = [
+        ROOT / "src" / "pyxel_mcp",
+        ROOT / "server.json",
+        ROOT / "build_hooks.py",
+        ROOT / "skill",
+    ]
+    assert [str(p.relative_to(ROOT)) for p in forbidden_paths if p.exists()] == []
+
+    forbidden_terms = [
+        "publish-skill",
+        "pyxel://workflow",
+        "bundled copy",
+        "bundled skill",
+        "workflow resource",
+    ]
+    offenders = []
+    for path in ROOT.rglob("*.md"):
+        if ".git" in path.parts:
+            continue
+        text = path.read_text().lower()
+        for term in forbidden_terms:
+            if term.lower() in text:
+                offenders.append(f"{path.relative_to(ROOT)}: {term}")
+    assert offenders == []
