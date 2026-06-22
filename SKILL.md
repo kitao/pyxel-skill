@@ -2,7 +2,9 @@
 name: pyxel
 description: Build complete retro games with Pyxel through a verified, gated pipeline. TRIGGER when the user wants to make a Pyxel / retro / 8-bit / pixel-art game, or asks to recreate a classic arcade title. DO NOT TRIGGER on general Python work, on existing non-Pyxel projects, or when a different game engine (Pygame, Godot, Unity) is mentioned.
 license: MIT
-version: 0.2.0
+compatibility: "Requires pyxel-mcp >= 1.0.0, Pyxel >= 2.9.6, and Python >= 3.10."
+metadata:
+  version: "1.1.0"
 ---
 
 # pyxel — Retro Game Production Harness
@@ -11,26 +13,20 @@ Build playable, clearable, recognizable-sprite Pyxel games via a phased pipeline
 
 ## Required runtime
 
-This skill assumes `pyxel-mcp` ≥ 0.10.0 is installed and registered as an MCP server reachable at the namespace `pyxel`. On activation, before reading any stage file, verify:
+This skill assumes `pyxel-mcp` ≥ 1.0.0 is installed and registered as an MCP server reachable at the namespace `pyxel`. The exact tool-invocation syntax depends on the host (Claude Code surfaces them as `mcp__pyxel__<tool>`, other clients differ); what matters is that the host's MCP tool list shows these names under the `pyxel` namespace:
 
-- `mcp__pyxel__pyxel_info` is callable.
-- `mcp__pyxel__validate` is callable.
-- `mcp__pyxel__run` is callable.
+- `pyxel_info` (discovery — versions + paths + resource URIs)
+- `validate` (static analysis — 10 anti-pattern detectors including ragged hex-string rows)
+- `run` (dynamic execution — N frames, scheduled inputs, snapshots)
+- `read_palette` / `read_image` / `read_animation` / `read_tilemap` / `read_audio` (raw observation)
+- `diff_frames` (PNG pixel diff)
 
-If absent, run:
+Quality verification is the **agent's** responsibility, not a tool's. The 9 tools above capture observations; the agent asserts predicates directly in Python and visually inspects captured PNGs. The quality gate (`quality-gate.md`) lays out the stop conditions the agent runs before declaring done.
+
+If the namespace is missing, the user can get the install snippet by running:
 
 ```bash
-uvx pyxel-mcp --version
-```
-
-If not installed, instruct the user to add to their `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "pyxel": { "command": "uvx", "args": ["pyxel-mcp"] }
-  }
-}
+uvx pyxel-mcp install
 ```
 
 The skill cannot proceed without these tools. Bail with a clear message if Claude Code's permission prompt for `uvx` is denied.
@@ -62,7 +58,7 @@ User request: "make a Pyxel game ..."
         |
         +-- Proof bundle present at screenshots/result/<N>/
         +-- Pre-handoff agent visual review: Read each key frame PNG, verbalize, compare to PLAN.md milestones (capture.md)
-        +-- Stop hook fires (best-effort assertion that bundle is well-formed)
+        +-- Stop hook fires (non-blocking presence tripwire for the proof bundle)
         +-- Summary to user
 ```
 
@@ -93,14 +89,21 @@ The quality gate's `gate-report.json` writes abstract phase names in `fail_route
 | `sprite-quality`  | `asset-gen.md`      |
 | `playthrough`     | `task-execution.md` |
 | `bundle`          | `capture.md`        |
+
+### Reference and knowledge files
+
+Loaded on demand from stage files (not eagerly at skill-activation time):
+
+| File | Purpose | Read from |
+|------|---------|-----------|
 | `quirks.md` | Pyxel API gotchas | When Pyxel behaves unexpectedly |
-| `test-harness.md` | Milestone playthrough verification | Called from Stage 6 |
-| `capture.md` | Proof bundle production | Called from Stage 6 / Stage 7 |
-| `knowledge/pixel-art.md` | Sprite + palette + color hierarchy | Stage 4, Stage 5, Stage 7 |
-| `knowledge/background.md` | Bg + parallax + screen layout | Stage 1, Stage 3, Stage 7 |
+| `test-harness.md` | Milestone playthrough verification | Stage 6 |
+| `capture.md` | Proof bundle production | Stages 6 + 7 |
+| `knowledge/pixel-art.md` | Sprite + palette + colour hierarchy | Stages 4, 5, 7 |
+| `knowledge/background.md` | Background + parallax + screen layout | Stages 1, 3, 7 |
 | `knowledge/game-feel.md` | Physics + jumps + hitboxes + camera + shake | Stage 6 |
-| `knowledge/audio.md` | SE cookbook + MML + channel discipline | Stage 3, Stage 6 |
-| `knowledge/patterns.md` | Title screen, scene SM, level/enemy, animation timing | Stage 3, Stage 6 |
+| `knowledge/audio.md` | SE cookbook + MML + channel discipline | Stages 3, 6 |
+| `knowledge/patterns.md` | Title screen, scene SM, level / enemy, animation timing | Stages 3, 6 |
 
 ## Persistent state
 
@@ -137,19 +140,19 @@ These are the cheats this harness exists to catch. Do not commit any of them.
 
 1. **Visual primacy.** When code says X happened but a captured frame shows Y, trust the capture.
 2. **Trust media over code.** A passing `validate` and a non-crashing `run` only certify the script does not crash. They do not certify gameplay.
-3. **No procedural fallback.** `pyxel.rect(x, y, 16, 16, 8)` in place of a declared sprite means asset-gen was skipped. Go back. The `pyxel.rect()` calls for player/enemy bodies are a red flag.
+3. **No asset fallback.** A solid rectangle in place of a declared sprite means asset generation was skipped. Use Pyxel's drawing primitives intentionally, but do not pass off placeholders as finished art.
 4. **Bundle integrity.** A `screenshots/result/<N>/` bundle whose first 3 seconds are correct and the rest is static is FAIL, not partial pass.
 5. **Bias toward failure.** If behavior is not clearly visible in the capture, treat as not-done. Hidden or inferred behavior does not count.
 6. **Closed-loop input only.** Open-loop scripted input drifts past ~200 frames. Issue `run` calls in segments per Pattern C (cumulative-replay), reading observed `state` snapshots between segments and recomputing the next input schedule from the actual position.
-7. **No "looks fine".** Every verify is a specific predicate against an observed value, not a vibe check.
+7. **No "looks fine".** Every verify is a specific Python predicate the agent writes against an observed value, not a vibe check. No tool wraps the predicate; you assert it directly against `result["snapshots"]` values.
 8. **No bundle, no done.** A `screenshots/result/<N>/` directory containing win-path.gif, lose-path.gif, frames, audio WAVs is the precondition for declaring "done". A green gate report without a bundle is FAIL.
-9. **No user-handoff without agent visual review.** Before reporting "done" to the user, agent (you) must `Read` every key frame in the proof bundle, verbalize observations in 1–2 sentences each, and confirm against PLAN.md milestones. Bundle existence + 15-check gate PASS is necessary but not sufficient — the agent's own multimodal judgment is the final gate. "Did I look at the screenshot?" is a precondition for "is this done?". Tool-based checks (`inspect_image` verdicts, `state` snapshots) certify mechanics; only the agent's own eyes certify *recognizability* and *playability*. See `capture.md` "Pre-handoff agent review".
+9. **No user-handoff without agent visual review.** Before reporting "done" to the user, agent (you) must inspect every key frame in the proof bundle, verbalize observations in 1–2 sentences each, and confirm against PLAN.md milestones. A passing gate is necessary but not sufficient; tool checks certify mechanics, while visual review certifies recognizability and playability. See `capture.md` "Pre-handoff agent review".
 
 ## Quality gate is the contract
 
-Done is whatever `quality-gate.md`'s stop conditions say is done. The agent cannot skip ahead, cannot self-certify, and cannot claim "done" with unaddressed FAILs. Re-enter whichever phase the FAIL points to, remediate, re-run the gate.
+Done is whatever `quality-gate.md`'s 11 stop conditions say is done. The agent cannot skip ahead, cannot self-certify, and cannot claim "done" with unaddressed FAILs. Re-enter whichever phase the FAIL points to, remediate, re-run the gate.
 
-The Stop hook (`hooks/stop_check_bundle.py`) fires at session boundary as a non-blocking tripwire. It surfaces missing bundles or unaddressed gate FAILs to the user — it does not replace the agent running the gate.
+The Stop hook (`hooks/stop_check_bundle.py`) fires at session boundary as a non-blocking tripwire. It surfaces missing bundles to the user — it does not replace the agent running the gate.
 
 ## What is NOT this skill's job
 
@@ -164,4 +167,3 @@ The Stop hook (`hooks/stop_check_bundle.py`) fires at session boundary as a non-
 - Pyxel default palette: `pyxel://palette/default` MCP resource.
 - `run` snapshot schema: `pyxel://run-snapshots-schema` MCP resource. Read before constructing complex `run` snapshot lists.
 - pyxel-mcp tool catalog: see its loaded `instructions`.
-- Design rationale: `docs/superpowers/specs/2026-05-01-pyxel-harness-design.md`.

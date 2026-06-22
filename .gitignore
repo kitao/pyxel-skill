@@ -20,3 +20,6 @@ venv/
 # Test / scratch
 *.log
 /tmp/
+superpowers/
+docs/superpowers/
+/pyxel-skill

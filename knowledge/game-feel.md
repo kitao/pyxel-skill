@@ -81,7 +81,7 @@ RUN_SPEED = 2.5
 ACCEL = 0.5           # frames to top speed: ~5
 DECEL = 0.8           # frames to stop: ~2
 
-# Floaty / momentum (Mario-style)
+# Floaty / momentum platformer
 GRAVITY = 0.25
 JUMP_VEL = -3.5
 MAX_FALL = 3.0
@@ -139,6 +139,101 @@ if jump_buffer > 0:
 - **Rewards/Stomp targets**: hitbox matches sprite (accurate)
 - Player: use 60-75% of sprite size as hitbox (e.g., 6x6 for 8x8 sprite)
 - `abs(a.x - b.x) < HIT_W and abs(a.y - b.y) < HIT_H`
+
+### Variability Budget (human-playability design constants)
+
+A game that only clears via one frame-perfect input sequence is a memorization puzzle, not gameplay. Quality gate #4b enforces ±3-frame jitter tolerance and #4c demands 2+ winning strategies; design under these constants:
+
+| Design dimension | Constant | Why |
+|---|---|---|
+| Hazard reaction window | ≥ 15 frames @ 30fps | 500ms human reaction (~6 frames) + decision margin (~9 frames) |
+| Adjacent-input spacing | ≥ 10 frames between any 2 required inputs | ±3 jitter on each → 6-frame collision risk; 10 frames keeps separation under jitter |
+| Hazard spawn period | ≥ 30 frames @ 30fps (1s) for "constant pressure" hazards | Faster + sustained ⇒ hazards-in-flight count grows, multiplicative difficulty |
+| Player invuln after hit | ≥ 30 frames | Without this, multiple hazards in flight chain-kill |
+| Pickup reach window | ≥ 20 frames overlap with player path | Allows ±3 jitter on traversal timing without missing pickup |
+| Multi-strategy paths | ≥ 2 viable winning paths | If only one specific timing clears, you've designed memorization, not gameplay |
+| Boss fire / enemy spawn telegraph | visible for ≥ 15 frames before hazard activates | Player needs to see the warning to react |
+
+**Math worked example.** A rolling hazard travels at 2 px/frame. The player's jump arc clears 24 px horizontally over 18 frames. So the **earliest** jump that clears the hazard must start when the hazard is ≥ 36 px away (18 frames × 2 px). At a 15-frame reaction window, the hazard must be visible to the player at distance ≥ 36 px + 15 frames × 2 px = 66 px. If your screen is 224 px wide and hazards spawn off-screen, that's `224/2 - 66 = 46` px of "decision space" between visible and must-jump. Tune so this is positive — a non-positive decision space means the player loses on every hazard they didn't pre-plan for.
+
+**Pattern C is solvability proof, not playability proof.** Pattern C's cumulative-replay (rewind to frame 0 with adjusted inputs) finds the *one* clearing trajectory. The gate's #4b/#4c demand the trajectory survive jitter and admit alternatives — those approximate human reactive play. If Pattern C clears but #4b/#4c fail, the design has only a pinpoint clearance and is not human-playable; fix the design constants in this table, not the gate thresholds.
+
+### Hazard Distribution (gate #4d)
+
+If hazards spawn from the same column / one side / one path every time, the player only learns one dodge motion — the game is a memorization shortcut, not reactive play. Quality-gate #4d enforces hazards spread across ≥70% of usable playfield width with stddev ≥18% (no clustering).
+
+**Avoid:**
+
+```python
+# Anti-pattern: every hazard spawns from the same x-position and moves right
+if self.frame % HAZARD_PERIOD == 0:
+    self.spawn_hazard(x=SPAWNER_X, vx=+HAZARD_SPEED)
+```
+
+The source is fixed; every hazard originates there; player learns one response. Clustered, fails #4d.
+
+**Use one of these patterns:**
+
+```python
+# Pattern 1: multi-spawn point — rotate through left/center/right sources
+SPAWN_POINTS = [40, 112, 184]  # left/center/right of usable width
+if self.frame % HAZARD_PERIOD == 0:
+    spawn_x = SPAWN_POINTS[(self.frame // HAZARD_PERIOD) % len(SPAWN_POINTS)]
+    self.spawn_hazard(x=spawn_x, vx=+HAZARD_SPEED)
+```
+
+```python
+# Pattern 2: deterministic-by-frame randomized spawn x within a visible source zone
+import random
+if self.frame % HAZARD_PERIOD == 0:
+    rng = random.Random(self.frame)
+    spawn_x = SOURCE_CENTER_X + rng.randint(-32, +32)
+    self.spawn_hazard(x=spawn_x, vx=+HAZARD_SPEED)
+```
+
+```python
+# Pattern 3: alternating direction — left-moving and right-moving hazards alternate
+if self.frame % HAZARD_PERIOD == 0:
+    n = self.frame // HAZARD_PERIOD
+    if n % 2 == 0:
+        self.spawn_hazard(x=USABLE_LEFT,  vx=+HAZARD_SPEED)
+    else:
+        self.spawn_hazard(x=USABLE_RIGHT, vx=-HAZARD_SPEED)
+```
+
+**Telegraph the distribution.** Player must be able to see / predict where the next hazard comes from (source marker faces the lane, warning flash, audio cue, etc.) so reaction is informed, not blind. A hazard that appears at random with no warning isn't reactive — it's a chance dice roll.
+
+**Multi-strategy implication.** When you tune for #4c (≥2 distinct winning strategies), at least one strategy should naturally use the hazard distribution: e.g. Strategy A takes the long outer route with a pickup, Strategy B cuts through the center during telegraphed gaps. If hazards cluster on one side, only one strategy is viable — #4d FAIL is also a #4c FAIL trigger.
+
+### Climb / Vertical-Route Mechanics
+
+Any climbable route (rope, vine, elevator column, stairs-like lane) needs three things, in order:
+
+1. **Engage / disengage tolerance.** When the player overlaps the route column AND presses UP/DOWN, switch to climb/ride state. Don't require pixel-perfect alignment — a ±2 px tolerance on `x` against the route centre prevents "ignored on the second-to-last pixel" frustration. Lock `x` to the route centre on engage so vertical movement stays straight.
+
+2. **Snap-on-release at exits.** When the player releases UP/DOWN near an exit ledge or route endpoint, snap the player to the exit and return to normal movement. Without this, releasing between the last climb pixel and the exit leaves the player floating in neither state.
+
+```python
+ROUTE_SNAP_PX = 12   # tested at 30fps with CLIMB_SPEED=1; raise for faster climbs
+
+if state == "CLIMB":
+    if pyxel.btn(pyxel.KEY_UP):
+        y -= CLIMB_SPEED
+    elif pyxel.btn(pyxel.KEY_DOWN):
+        y += CLIMB_SPEED
+    elif pyxel.btnr(pyxel.KEY_UP):
+        upper = route_exit_above(y)
+        if upper is not None and (y - upper.y) <= ROUTE_SNAP_PX:
+            y = upper.y
+            state = "WALK"
+    elif pyxel.btnr(pyxel.KEY_DOWN):
+        lower = route_exit_below(y)
+        if lower is not None and (lower.y - y) <= ROUTE_SNAP_PX:
+            y = lower.y
+            state = "WALK"
+```
+
+3. **Alternate movement must respect the route's role.** If the genre says this route is the only way to reach a layer, tune jump/dash/teleport values so they cannot bypass the route. Quality-gate.md check #10 should encode that genre identity rule explicitly.
 
 ### Camera (Side-Scroller)
 

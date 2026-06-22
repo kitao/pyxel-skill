@@ -3,6 +3,9 @@
 
 Best-effort. The hook never blocks Claude Code from stopping. It silently no-ops
 when the cwd is not a pyxel-skill project (no .pyxel-skill/ marker).
+
+The hook is a tripwire for missing artifacts only. The gate-report.json content
+is the agent's responsibility; the hook does not re-evaluate it.
 """
 
 from __future__ import annotations
@@ -43,6 +46,29 @@ def warn(msg: str) -> None:
     print(f"[pyxel-skill] WARN: {msg}", file=sys.stderr)
 
 
+def _has_video(bundle: Path, stem: str) -> bool:
+    return (bundle / f"{stem}.gif").is_file() or (bundle / f"{stem}.mp4").is_file()
+
+
+def _bundle_warnings(bundle: Path) -> list[str]:
+    warnings: list[str] = []
+    if not _has_video(bundle, "win-path"):
+        warnings.append(f"bundle {bundle.name} is incomplete: missing win-path.gif/mp4.")
+    if not _has_video(bundle, "lose-path"):
+        warnings.append(f"bundle {bundle.name} is incomplete: missing lose-path.gif/mp4.")
+    frames = bundle / "frames"
+    if not frames.is_dir() or len(list(frames.glob("*.png"))) < 5:
+        warnings.append(f"bundle {bundle.name} is incomplete: expected at least 5 frame PNGs.")
+    audio = bundle / "audio"
+    if not audio.is_dir() or not any(audio.glob("*.wav")):
+        warnings.append(f"bundle {bundle.name} is incomplete: expected audio/*.wav.")
+    if not (bundle / "notes.md").is_file():
+        warnings.append(f"bundle {bundle.name} is incomplete: missing notes.md.")
+    if not (bundle / "gate-report.json").is_file():
+        warnings.append(f"bundle {bundle.name} has no gate-report.json — quality gate did not run.")
+    return warnings
+
+
 def main() -> None:
     # Always print {} on stdout to be non-blocking. Even if input is malformed.
     try:
@@ -65,21 +91,8 @@ def main() -> None:
         print(json.dumps({}))
         return
 
-    win_gif = bundle / "win-path.gif"
-    if not win_gif.is_file():
-        warn(f"bundle {bundle.name} is incomplete: missing win-path.gif.")
-
-    gate_report = bundle / "gate-report.json"
-    if gate_report.is_file():
-        try:
-            data = json.loads(gate_report.read_text())
-            fail_count = data.get("summary", {}).get("fail", 0)
-            if fail_count > 0:
-                failed_checks = [c for c in data.get("checks", []) if c.get("result") == "FAIL"]
-                ids = ", ".join(str(c.get("id")) for c in failed_checks)
-                warn(f"gate report shows {fail_count} unaddressed FAIL(s) (check IDs: {ids}).")
-        except (json.JSONDecodeError, ValueError):
-            warn(f"gate-report.json in {bundle.name} is not valid JSON.")
+    for warning in _bundle_warnings(bundle):
+        warn(warning)
 
     print(json.dumps({}))
 
