@@ -7,6 +7,7 @@ Short reminders for common Pyxel mistakes. Read only when the current task touch
 - `pyxel.btn(KEY)` is continuous; `pyxel.btnp(KEY)` is a press edge.
 - For deterministic tests, pass `random_seed` to `run` and avoid frame-dependent randomness that changes across different run lengths.
 - Long input scripts can drift. Re-run from frame 0 with a cumulative schedule after reading observed state.
+- MCP output paths (`screen_image.output`, video `output`, `output_pattern`, `render_path`, `output_path`) must be expanded absolute paths.
 
 ## Drawing
 
@@ -17,7 +18,7 @@ Short reminders for common Pyxel mistakes. Read only when the current task touch
 ## Assets
 
 - Build image banks before `pyxel.run()` starts, usually in `App.__init__` or `_build_assets()`.
-- Use `read_image(..., render_path=...)` for sprites that must be recognizable.
+- Use `read_image(..., render_path=<absolute path>)` for sprites that must be recognizable.
 - Use `read_animation(..., region_count=2, direction=...)` for paired frames.
 - Avoid visible content in source tile `(0, 0)` when tilemaps use it as blank.
 
@@ -25,7 +26,7 @@ Short reminders for common Pyxel mistakes. Read only when the current task touch
 
 - For sounds that need verification, use `pyxel.sounds[N].set(...)`, not MML-only slots.
 - In `.set(notes=...)`, notes need explicit octave digits such as `C2D2E2`; `R` is a rest.
-- Render gateable audio with `read_audio(script=..., target={"sound": N}, output_path=...)`; music targets do not expose note lists.
+- Render gateable audio with `read_audio(script=..., target={"sound": N}, output_path=<absolute path>)`; music targets do not expose note lists.
 
 ## Visual Truth
 

@@ -20,7 +20,7 @@ The host should expose the `pyxel` MCP namespace from `pyxel-mcp >= 1.0.0`. Use 
 - `read_image`, `read_animation`, `read_audio`, `read_palette`, `read_tilemap`, and `diff_frames` only when the current task needs that specific observation.
 - `pyxel_info` when debugging setup or finding bundled examples/resources.
 
-If pyxel-mcp is missing, ask the user to run `uvx pyxel-mcp install` and register the printed MCP config.
+If pyxel-mcp is missing or older than 1.0.0, ask the user to install/register `pyxel-mcp >= 1.0.0`, normally with `uvx pyxel-mcp install`. If installation or MCP access is blocked, use direct Pyxel headless runs only as a temporary fallback: `py_compile` or focused tests for logic plus `pyxel.init(headless=True)` and `pyxel.screenshot()`. Say verification is weaker until pyxel-mcp is available.
 
 ## Default Loop
 
@@ -28,7 +28,7 @@ If pyxel-mcp is missing, ask the user to run `uvx pyxel-mcp install` and registe
 2. Build a complete first slice: title or start state, controls, one objective, one failure/retry path when the genre needs it.
 3. Run `validate`. Fix syntax and Pyxel footguns before dynamic runs.
 4. Run the game headlessly with `run`; capture at least one `state` snapshot and one `screen_image` on the path being verified.
-5. Inspect the captured PNG yourself. State values prove mechanics; pixels prove what the player actually sees.
+5. Inspect the captured PNG yourself for the task-specific result, not just nonblank pixels. State values prove mechanics; pixels prove what the player actually sees.
 6. Iterate on observed defects. Do not create PLAN/STRUCTURE/ASSETS/MEMORY files unless the project is large enough that they reduce confusion.
 7. Hand off with controls, changed files, and exact verification commands/results.
 
@@ -45,9 +45,10 @@ Add only genre-relevant checks:
 
 - Puzzle: solvable path, invalid move rejection, reset/undo if present.
 - Platformer/action: win/fail path, collision consequence, input timing tolerance where precision matters.
+- Rule-heavy games: keep core rules in a small logic module with focused tests before relying on visual runs.
 - Shooter/runner: spawn determinism, projectile/hazard consequence, no long static dead time.
 - Asset-heavy work: `read_image`/`read_animation` plus visual inspection of sprites.
-- Audio work: `read_audio(script=..., target={"sound": N}, output_path=...)`, non-empty notes, audible peak.
+- Audio work: `read_audio(script=..., target={"sound": N}, output_path=<absolute path>)`, non-empty notes, audible peak.
 
 ## When to Escalate
 

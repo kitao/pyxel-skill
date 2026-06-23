@@ -16,7 +16,13 @@ There is no default proof-bundle requirement, no stage pipeline, and no bundled 
 
 ## Install
 
-Register pyxel-mcp first:
+Install and register pyxel-mcp >= 1.0.0 from PyPI via `uvx` first:
+
+```bash
+uvx pyxel-mcp install
+```
+
+Paste the printed MCP config into your client's MCP configuration. It should look like this:
 
 ```json
 {
@@ -26,11 +32,32 @@ Register pyxel-mcp first:
 }
 ```
 
-Then install this repository as a host-native skill:
+Ask the client to run `pyxel_info` and confirm `pyxel_mcp_version` is at least 1.0.0. If your package index does not have 1.0.0 yet, release pyxel-mcp first or point the MCP config at a local pyxel-mcp checkout for development.
+
+Then install this repository as a host-native skill. The canonical source for the skill is `https://github.com/kitao/pyxel-skill.git`.
+
+Clone once:
 
 ```bash
-mkdir -p ~/src ~/.claude/skills
+mkdir -p ~/src
 git clone https://github.com/kitao/pyxel-skill.git ~/src/pyxel-skill
+```
+
+Then link it into the skill directory used by your client. The installed folder or symlink must be named `pyxel`. Examples:
+
+```bash
+# Agent Skills default
+mkdir -p ~/.agents/skills
+test ! -e ~/.agents/skills/pyxel
+ln -s ~/src/pyxel-skill ~/.agents/skills/pyxel
+
+# Codex
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+test ! -e "${CODEX_HOME:-$HOME/.codex}/skills/pyxel"
+ln -s ~/src/pyxel-skill "${CODEX_HOME:-$HOME/.codex}/skills/pyxel"
+
+# Claude Code
+mkdir -p ~/src ~/.claude/skills
 test ! -e ~/.claude/skills/pyxel
 ln -s ~/src/pyxel-skill ~/.claude/skills/pyxel
 ```
