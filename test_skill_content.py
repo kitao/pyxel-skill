@@ -19,30 +19,26 @@ ALLOWED_FRONTMATTER_KEYS = {
     "allowed-tools",
 }
 STALE_PATTERNS = [
-    "inspect_",
-    "render_audio",
-    "compare_frames",
-    "run_and_capture",
-    "0.10.0",
-    "0.9.3",
-    "v0.2.0",
-    "Donkey",
-    "DK",
-    "Mario",
-    "Princess",
-    "princess",
-    "barrel",
-    "barrels",
-    "girder",
-    "girders",
-    "hammer",
-    "hammers",
-    "13-check",
-    "15-check",
-    "docs/superpowers",
-    "superpowers/",
-    "publish-skill",
-    "bundled copy",
+    r"inspect_",
+    r"render_audio",
+    r"compare_frames",
+    r"run_and_capture",
+    r"0\.10\.0",
+    r"0\.9\.3",
+    r"v0\.2\.0",
+    r"donkey",
+    r"\bdk\b",
+    r"\bmario\b",
+    r"\bprincess\b",
+    r"\bbarrels?\b",
+    r"\bgirders?\b",
+    r"\bhammers?\b",
+    r"13-check",
+    r"15-check",
+    r"docs/superpowers",
+    r"superpowers/",
+    r"publish-skill",
+    r"bundled copy",
 ]
 
 
@@ -53,7 +49,7 @@ def test_public_markdown_has_no_stale_tool_or_validation_lore():
             continue
         text = path.read_text().lower()
         for pattern in STALE_PATTERNS:
-            if pattern.lower() in text:
+            if re.search(pattern, text):
                 offenders.append(f"{path.relative_to(ROOT)}: {pattern}")
 
     assert offenders == []
@@ -72,7 +68,7 @@ def test_skill_frontmatter_uses_spec_fields():
     assert "version" not in keys
     assert keys <= ALLOWED_FRONTMATTER_KEYS
     assert "metadata" in keys
-    assert any(line == '  version: "1.1.0"' for line in lines[1:end])
+    assert any(line == '  version: "1.2.0"' for line in lines[1:end])
 
 
 def test_skill_frontmatter_name_matches_install_contract():
@@ -143,7 +139,7 @@ def test_mcp_unavailable_guidance_prefers_install_over_fallback():
     text = SKILL_MD.read_text().lower()
 
     assert "uvx pyxel-mcp install" in text
-    assert "older than 1.0.0" in text
+    assert "older than 1.1.0" in text
     assert "temporary fallback" in text
     assert "weaker" in text
 
@@ -176,7 +172,9 @@ def test_readme_install_points_to_github_and_codex_skill_path():
     assert "from PyPI via `uvx`" in text
     assert "uvx pyxel-mcp install" in text
     assert "pyxel_info" in text
-    assert "pyxel-mcp >= 1.0.0" in text
+    assert "pyxel-mcp >= 1.1.0" in text
+    assert "npx skills add kitao/pyxel-skill" in text
+    assert ".claude/skills" in text
     assert "https://github.com/kitao/pyxel-skill.git" in text
     assert "skill directory used by your client" in text
     assert "~/.agents/skills/pyxel" in text
