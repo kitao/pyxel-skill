@@ -33,7 +33,7 @@ Run these in order and stop on the first failure:
 3. Captured frames are non-blank and visually match the intended scene.
 4. Genre predicates pass from `state` snapshots.
 5. Success/failure paths are verified when the genre has them.
-6. Captured gameplay is not static during active play.
+6. Captured gameplay is not static during active play (`diff_frames` between two mid-play frames is the usual check).
 7. Audio slots used by the game render audible WAVs.
 8. Final visual review agrees with the user's brief.
 

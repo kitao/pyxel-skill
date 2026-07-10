@@ -6,7 +6,7 @@ Short reminders for common Pyxel mistakes. Read only when the current task touch
 
 - `pyxel.btn(KEY)` is continuous; `pyxel.btnp(KEY)` is a press edge.
 - For deterministic tests, pass `random_seed` to `run` and avoid frame-dependent randomness that changes across different run lengths.
-- Long input scripts can drift. Re-run from frame 0 with a cumulative schedule after reading observed state.
+- Long input scripts can drift. Re-run from frame 0 with a cumulative schedule after reading observed state, or use `run(until="<expr>")` with `"frame": "end"` snapshots to stop at a condition instead of guessing frame numbers (pyxel-mcp >= 1.1.0).
 - MCP output paths (`screen_image.output`, video `output`, `output_pattern`, `render_path`, `output_path`) must be expanded absolute paths.
 
 ## Drawing
