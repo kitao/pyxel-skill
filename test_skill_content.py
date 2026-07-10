@@ -42,11 +42,17 @@ STALE_PATTERNS = [
 ]
 
 
-def test_public_markdown_has_no_stale_tool_or_validation_lore():
-    offenders: list[str] = []
+def _public_markdown_files():
+    """Markdown files that ship publicly (skips VCS internals and local agent scratch)."""
     for path in ROOT.rglob("*.md"):
         if ".git" in path.parts or ".superpowers" in path.parts:
             continue
+        yield path
+
+
+def test_public_markdown_has_no_stale_tool_or_validation_lore():
+    offenders: list[str] = []
+    for path in _public_markdown_files():
         text = path.read_text().lower()
         for pattern in STALE_PATTERNS:
             if re.search(pattern, text):
@@ -119,9 +125,7 @@ def test_skill_default_surface_stays_lean():
 
 def test_audio_examples_include_output_path():
     offenders = []
-    for path in ROOT.rglob("*.md"):
-        if ".git" in path.parts:
-            continue
+    for path in _public_markdown_files():
         text = path.read_text()
         if "read_audio(target=" in text:
             offenders.append(str(path.relative_to(ROOT)))
@@ -209,9 +213,7 @@ def test_skill_repo_has_no_mcp_server_or_bundled_distribution_surface():
         "workflow resource",
     ]
     offenders = []
-    for path in ROOT.rglob("*.md"):
-        if ".git" in path.parts:
-            continue
+    for path in _public_markdown_files():
         text = path.read_text().lower()
         for term in forbidden_terms:
             if term.lower() in text:
