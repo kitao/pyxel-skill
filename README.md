@@ -50,6 +50,7 @@ npx skills add kitao/pyxel-skill
 
 ```bash
 git clone https://github.com/kitao/pyxel-skill.git .claude/skills/pyxel
+rm -rf .claude/skills/pyxel/.git
 ```
 
 **Manual clone + symlink** — the canonical source is `https://github.com/kitao/pyxel-skill.git`:
