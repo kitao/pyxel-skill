@@ -1,5 +1,7 @@
 # pyxel-skill
 
+[![Tests](https://img.shields.io/github/actions/workflow/status/kitao/pyxel-skill/test.yml?branch=main&label=tests)](https://github.com/kitao/pyxel-skill/actions/workflows/test.yml)
+
 Standalone Pyxel game-building skill. It is intentionally small: modern models get more value from tight observation loops than from a large prescribed pipeline.
 
 `pyxel-skill` decides what to build and how to verify it. [`pyxel-mcp`](https://github.com/kitao/pyxel-mcp) supplies the observation tools: `run`, `validate`, `pyxel_info`, `read_palette`, `read_image`, `read_animation`, `read_tilemap`, `read_audio`, and `diff_frames`.
