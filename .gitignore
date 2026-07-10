@@ -23,6 +23,6 @@ venv/
 /tmp/
 
 # Local agent scratch; ignored so it never becomes public skill content.
+.superpowers/
 superpowers/
 docs/superpowers/
-/pyxel-skill

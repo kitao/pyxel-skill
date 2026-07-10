@@ -45,7 +45,7 @@ STALE_PATTERNS = [
 def test_public_markdown_has_no_stale_tool_or_validation_lore():
     offenders: list[str] = []
     for path in ROOT.rglob("*.md"):
-        if ".git" in path.parts:
+        if ".git" in path.parts or ".superpowers" in path.parts:
             continue
         text = path.read_text().lower()
         for pattern in STALE_PATTERNS:
