@@ -2,104 +2,74 @@
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/kitao/pyxel-skill/test.yml?branch=main&label=tests)](https://github.com/kitao/pyxel-skill/actions/workflows/test.yml)
 
-Standalone Pyxel game-building skill. It is intentionally small: modern models get more value from tight observation loops than from a large prescribed pipeline.
+A standalone Agent Skill for building and verifying Pyxel games. It supplies task judgment and a proportional workflow; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools.
 
-`pyxel-skill` decides what to build and how to verify it. [`pyxel-mcp`](https://github.com/kitao/pyxel-mcp) supplies the observation tools: `run`, `validate`, `pyxel_info`, `read_palette`, `read_image`, `read_animation`, `read_tilemap`, `read_audio`, and `diff_frames`.
-
-## Status
-
-`v1.2.0` targets pyxel-mcp >= 1.1.0 and Pyxel >= 2.9.6. The skill is three public files:
-
-- `SKILL.md`: trigger, default loop, minimum verification, boundaries.
-- `strict-mode.md`: optional release/audit evidence bundle.
-- `pyxel-notes.md`: concise Pyxel footguns.
-
-There is no default proof-bundle requirement, no stage pipeline, and no bundled stop hook. Use strict mode only when the user asks for release-grade evidence or the project size warrants it.
+Version v1.3.0 targets pyxel-mcp >= 1.2.0, Pyxel >= 2.9.6, and Python >= 3.11.
 
 ## Install
 
-### 1. Register pyxel-mcp
-
-Install and register pyxel-mcp >= 1.1.0 from PyPI via `uvx` first:
+First register pyxel-mcp:
 
 ```bash
 uvx pyxel-mcp install
 ```
 
-Paste the printed MCP config into your client's MCP configuration. It should look like this:
+Add the printed MCP configuration to the client and restart it. A `pyxel_info` call should report pyxel-mcp 1.2 or newer.
 
-```json
-{
-  "mcpServers": {
-    "pyxel": { "command": "uvx", "args": ["pyxel-mcp"] }
-  }
-}
-```
+Then install the skill. The installed folder or symlink must be named `pyxel`.
 
-Ask the client to run `pyxel_info` and confirm `pyxel_mcp_version` is at least 1.1.0.
-
-### 2. Install the skill
-
-The installed folder or symlink must be named `pyxel`. Pick one route:
-
-**One-liner (recommended)** — [skills CLI](https://github.com/vercel-labs/skills) installs and links the skill for 70+ agents:
+With the [skills CLI](https://github.com/vercel-labs/skills):
 
 ```bash
 npx skills add kitao/pyxel-skill
 ```
 
-**Project-scoped** — commit the skill into a repository so every collaborator gets it:
+For a project-scoped install:
 
 ```bash
 git clone https://github.com/kitao/pyxel-skill.git .claude/skills/pyxel
 rm -rf .claude/skills/pyxel/.git
 ```
 
-**Manual clone + symlink** — the canonical source is `https://github.com/kitao/pyxel-skill.git`:
+For a shared local clone:
 
 ```bash
 mkdir -p ~/src
 git clone https://github.com/kitao/pyxel-skill.git ~/src/pyxel-skill
-```
 
-Then link it into the skill directory used by your client:
-
-```bash
-# Agent Skills default
+# Agent Skills
 mkdir -p ~/.agents/skills
-test ! -e ~/.agents/skills/pyxel && ln -s ~/src/pyxel-skill ~/.agents/skills/pyxel
+ln -s ~/src/pyxel-skill ~/.agents/skills/pyxel
 
 # Codex
 mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
-test ! -e "${CODEX_HOME:-$HOME/.codex}/skills/pyxel" && ln -s ~/src/pyxel-skill "${CODEX_HOME:-$HOME/.codex}/skills/pyxel"
+ln -s ~/src/pyxel-skill "${CODEX_HOME:-$HOME/.codex}/skills/pyxel"
 
-# Claude Code (personal)
+# Claude Code
 mkdir -p ~/.claude/skills
-test ! -e ~/.claude/skills/pyxel && ln -s ~/src/pyxel-skill ~/.claude/skills/pyxel
+ln -s ~/src/pyxel-skill ~/.claude/skills/pyxel
 ```
 
-Restart the client after installing.
+Restart the client after installing or updating the skill.
 
-## Use
+## Contents
 
-Ask for a Pyxel game or a Pyxel-game change. The skill should produce a playable slice, run `validate`, run the game headlessly, capture at least one frame, inspect the PNG, and report exact commands/results.
-
-For release-level confidence, ask explicitly for strict mode or a proof bundle.
+- `SKILL.md` — trigger, runtime contract, default workflow, and boundaries.
+- `references/pyxel.md` — Pyxel-specific behavior loaded only when relevant.
+- `references/strict-mode.md` — opt-in release and audit evidence.
 
 ## Development
 
-Content invariants are tested:
-
 ```bash
-pytest test_skill_content.py
+pytest -q test_skill_content.py
 ```
 
 ## Compatibility
 
 | pyxel-skill | pyxel-mcp | Pyxel | Python |
 |---|---|---|---|
-| 1.2.0 | >= 1.1.0 | >= 2.9.6 | >= 3.10 |
+| 1.3.0 | >= 1.2.0 | >= 2.9.6 | >= 3.11 |
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).

@@ -1,4 +1,4 @@
-"""Repository-level checks for stale public skill content."""
+"""Structural and contract checks for the public skill."""
 
 from __future__ import annotations
 
@@ -7,215 +7,142 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-SKILL_MD = ROOT / "SKILL.md"
-README_MD = ROOT / "README.md"
-PYXEL_NOTES_MD = ROOT / "pyxel-notes.md"
-ALLOWED_FRONTMATTER_KEYS = {
-    "name",
-    "description",
-    "license",
-    "compatibility",
-    "metadata",
-    "allowed-tools",
-}
-STALE_PATTERNS = [
-    r"inspect_",
-    r"render_audio",
-    r"compare_frames",
-    r"run_and_capture",
-    r"0\.10\.0",
-    r"0\.9\.3",
-    r"v0\.2\.0",
-    r"donkey",
-    r"\bdk\b",
-    r"\bmario\b",
-    r"\bprincess\b",
-    r"\bbarrels?\b",
-    r"\bgirders?\b",
-    r"\bhammers?\b",
-    r"13-check",
-    r"15-check",
-    r"docs/superpowers",
-    r"superpowers/",
-    r"publish-skill",
-    r"bundled copy",
-]
+SKILL = ROOT / "SKILL.md"
+README = ROOT / "README.md"
+REFERENCES = ROOT / "references"
 
 
-def _public_markdown_files():
-    """Markdown files that ship publicly (skips VCS internals and local agent scratch)."""
-    for path in ROOT.rglob("*.md"):
-        if ".git" in path.parts or ".superpowers" in path.parts:
-            continue
-        yield path
-
-
-def test_public_markdown_has_no_stale_tool_or_validation_lore():
-    offenders: list[str] = []
-    for path in _public_markdown_files():
-        text = path.read_text().lower()
-        for pattern in STALE_PATTERNS:
-            if re.search(pattern, text):
-                offenders.append(f"{path.relative_to(ROOT)}: {pattern}")
-
-    assert offenders == []
-
-
-def test_skill_frontmatter_uses_spec_fields():
-    lines = SKILL_MD.read_text().splitlines()
+def _frontmatter() -> tuple[dict[str, str], list[str]]:
+    lines = SKILL.read_text().splitlines()
     assert lines[0] == "---"
-    end = lines.index("---", 1)
-    keys = {
-        line.split(":", 1)[0]
-        for line in lines[1:end]
-        if line and not line.startswith(" ") and ":" in line
-    }
-
-    assert "version" not in keys
-    assert keys <= ALLOWED_FRONTMATTER_KEYS
-    assert "metadata" in keys
-    assert any(line == '  version: "1.2.0"' for line in lines[1:end])
-
-
-def test_skill_frontmatter_name_matches_install_contract():
-    lines = SKILL_MD.read_text().splitlines()
     end = lines.index("---", 1)
     fields = {
         line.split(":", 1)[0]: line.split(":", 1)[1].strip().strip('"')
         for line in lines[1:end]
         if line and not line.startswith(" ") and ":" in line
     }
-    name = fields["name"]
-    description = fields["description"]
-    compatibility = fields["compatibility"]
-    readme = README_MD.read_text()
-
-    assert re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?", name)
-    assert "--" not in name
-    assert len(description) <= 1024
-    assert len(compatibility) <= 500
-    assert "must be named `pyxel`" in readme
-    assert "~/.agents/skills/pyxel" in readme
+    return fields, lines[1:end]
 
 
-def test_skill_default_surface_stays_lean():
-    forbidden = {
-        "visual-target.md",
-        "decomposer.md",
-        "scaffold.md",
-        "asset-planner.md",
-        "asset-gen.md",
-        "task-execution.md",
-        "quality-gate.md",
-        "test-harness.md",
-        "capture.md",
-        "quirks.md",
+def _skill_markdown() -> list[Path]:
+    return [SKILL, *sorted(REFERENCES.glob("*.md"))]
+
+
+def test_skill_frontmatter_is_valid_and_current():
+    fields, lines = _frontmatter()
+    assert set(fields) == {"name", "description", "license", "metadata"}
+    assert fields["name"] == "pyxel"
+    assert re.fullmatch(r"[a-z0-9-]{1,64}", fields["name"])
+    assert "Pyxel" in fields["description"]
+    assert len(fields["description"]) <= 1024
+    assert '  version: "1.3.0"' in lines
+
+    body = SKILL.read_text()
+    assert "pyxel-mcp 1.2+" in body
+    assert "Python 3.11" in body
+    assert "--refresh-package pyxel-mcp" in body
+
+
+def test_skill_payload_has_one_shallow_reference_layer():
+    assert {path.name for path in REFERENCES.glob("*.md")} == {
+        "pyxel.md",
+        "strict-mode.md",
     }
-    present = {p.name for p in ROOT.glob("*.md")}
-    assert forbidden.isdisjoint(present)
-    assert not (ROOT / "knowledge").exists()
-    assert not (ROOT / "hooks").exists()
-    assert not any(p.is_file() for p in (ROOT / "docs").rglob("*"))
+    assert not (ROOT / "pyxel-notes.md").exists()
+    assert not (ROOT / "strict-mode.md").exists()
+    assert not any(path.is_file() for path in REFERENCES.glob("*/*"))
 
-    words = SKILL_MD.read_text().split()
-    assert len(words) <= 850
-
-    assert (ROOT / "strict-mode.md").is_file()
-    assert (ROOT / "pyxel-notes.md").is_file()
-
-def test_audio_examples_include_output_path():
-    offenders = []
-    for path in _public_markdown_files():
-        text = path.read_text()
-        if "read_audio(target=" in text:
-            offenders.append(str(path.relative_to(ROOT)))
-    assert offenders == []
+    main = SKILL.read_text()
+    assert "references/pyxel.md" in main
+    assert "references/strict-mode.md" in main
+    assert len(main.split()) <= 550
 
 
-def test_skill_examples_do_not_show_placeholder_artifact_paths():
-    text = SKILL_MD.read_text()
+def test_skill_matches_the_eight_tool_v2_contract():
+    text = "\n".join(path.read_text() for path in _skill_markdown())
+    for tool in [
+        "validate",
+        "run",
+        "pyxel_info",
+        "read_palette",
+        "read_image",
+        "read_tilemap",
+        "read_audio",
+        "diff_frames",
+    ]:
+        assert f"`{tool}`" in text
 
-    assert "output_path=...)" not in text
-    assert "output_path=<absolute path>" in text
+    for removed in [
+        "read_animation",
+        "layout snapshot",
+        "ASSERT PASS",
+        "universal quality score",
+        "pyxel://anti-patterns",
+    ]:
+        assert removed not in text
+    assert "pyxel://validation-patterns" in text
 
 
-def test_mcp_unavailable_guidance_prefers_install_over_fallback():
-    text = SKILL_MD.read_text().lower()
+def test_default_loop_requires_direct_mechanical_and_visual_evidence():
+    text = SKILL.read_text().lower()
+    assert "state" in text and "screen_image" in text
+    assert "inspect" in text and "captured" in text
+    assert "task-specific" in text
+    assert "validate clean" not in text
+    assert "relevant warnings" in text
+    assert "log field" in text
+    assert "run.log" not in text
+    assert "even when" in text and "ok" in text
 
+
+def test_references_are_progressive_and_task_specific():
+    main = SKILL.read_text().lower()
+    pyxel = (REFERENCES / "pyxel.md").read_text().lower()
+    strict = (REFERENCES / "strict-mode.md").read_text().lower()
+
+    assert "read" in main and "only when" in main
+    assert "absolute" in pyxel
+    assert "lowercase" in pyxel and ".png" in pyxel
+    assert "pyxel.btnp" in pyxel and "colkey=0" in pyxel
+    assert "replaces" in pyxel and "release" in pyxel
+    assert "attribute paths" in pyxel and "expressions" in pyxel and "self." in pyxel
+    assert "random.random" in pyxel and "explicit" in pyxel
+    assert "runtime" in pyxel and "not auditioned" in pyxel
+    assert "opt-in" in strict
+    assert "proof" in strict and "release" in strict
+
+
+def test_readme_is_human_installation_not_a_second_skill():
+    text = README.read_text()
+    assert "v1.3.0" in text
+    assert "pyxel-mcp >= 1.2.0" in text
+    assert "Python >= 3.11" in text
     assert "uvx pyxel-mcp install" in text
-    assert "older than 1.1.0" in text
-    assert "temporary fallback" in text
-    assert "weaker" in text
-
-
-def test_visual_verification_requires_task_result_not_nonblank_only():
-    text = SKILL_MD.read_text().lower()
-
-    assert "not just nonblank pixels" in text
-    assert "task-specific result" in text
-
-
-def test_rule_heavy_games_prefer_small_logic_tests():
-    text = SKILL_MD.read_text().lower()
-
-    assert "rule-heavy" in text
-    assert "focused tests" in text
-
-
-def test_pyxel_notes_require_absolute_artifact_paths():
-    text = PYXEL_NOTES_MD.read_text().lower()
-
-    assert "must be expanded absolute paths" in text
-    assert "render_path=<absolute path>" in text
-    assert "output_path=<absolute path>" in text
-
-
-def test_readme_install_points_to_github_and_codex_skill_path():
-    text = README_MD.read_text()
-
-    assert "from PyPI via `uvx`" in text
-    assert "uvx pyxel-mcp install" in text
-    assert "pyxel_info" in text
-    assert "pyxel-mcp >= 1.1.0" in text
     assert "npx skills add kitao/pyxel-skill" in text
-    assert ".claude/skills" in text
     assert "https://github.com/kitao/pyxel-skill.git" in text
-    assert "skill directory used by your client" in text
+    assert "must be named `pyxel`" in text
     assert "~/.agents/skills/pyxel" in text
     assert "${CODEX_HOME:-$HOME/.codex}/skills" in text
     assert "~/.claude/skills/pyxel" in text
+    assert "## Default Loop" not in text
 
 
-def test_local_agent_settings_are_ignored_by_repo():
-    ignore = (ROOT / ".gitignore").read_text()
-    assert ".claude/" in ignore
-
-
-def test_superpowers_scratch_dirs_are_not_present():
-    assert not (ROOT / "superpowers").exists()
-    assert not (ROOT / "docs" / "superpowers").exists()
-
-
-def test_skill_repo_has_no_mcp_server_or_bundled_distribution_surface():
-    forbidden_paths = [
+def test_repo_contains_no_server_or_distribution_plumbing():
+    forbidden = [
         ROOT / "src" / "pyxel_mcp",
         ROOT / "server.json",
         ROOT / "build_hooks.py",
-        ROOT / "skill",
+        ROOT / "hooks",
+        ROOT / "knowledge",
     ]
-    assert [str(p.relative_to(ROOT)) for p in forbidden_paths if p.exists()] == []
+    assert [str(path.relative_to(ROOT)) for path in forbidden if path.exists()] == []
 
-    forbidden_terms = [
-        "publish-skill",
-        "pyxel://workflow",
-        "bundled copy",
-        "bundled skill",
-        "workflow resource",
-    ]
-    offenders = []
-    for path in _public_markdown_files():
-        text = path.read_text().lower()
-        for term in forbidden_terms:
-            if term.lower() in text:
-                offenders.append(f"{path.relative_to(ROOT)}: {term}")
-    assert offenders == []
+    text = "\n".join(path.read_text().lower() for path in _skill_markdown())
+    for term in ["publish-skill", "pyxel://workflow", "bundled skill"]:
+        assert term not in text
+
+
+def test_local_agent_state_is_ignored():
+    ignore = (ROOT / ".gitignore").read_text()
+    assert ".claude/" in ignore
+    assert ".superpowers/" in ignore
