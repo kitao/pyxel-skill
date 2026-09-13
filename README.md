@@ -56,6 +56,8 @@ mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills" && ln -s ~/src/pyxel-skill "${CODE
 mkdir -p ~/.claude/skills && ln -s ~/src/pyxel-skill ~/.claude/skills/pyxel
 ```
 
+Claude Code loads a full checkout under `~/.claude/skills` as the plugin `pyxel@skills-dir`, which registers the `pyxel` MCP server from `.mcp.json` just like the plugin install, so do not add the server again by hand.
+
 ## Contents
 
 - `SKILL.md` — trigger, runtime contract, default workflow, minimum evidence, and boundaries.
