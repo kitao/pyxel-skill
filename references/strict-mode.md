@@ -6,7 +6,7 @@ Strict mode is opt-in. Use it for release readiness, adversarial review, a reque
 
 Keep evidence under one project-local result directory chosen with the user or consistent with the repository. Include only artifacts that prove the current game:
 
-- representative start, play, success, and failure frames when those states exist;
+- representative start, play, success, and failure frames when those states exist, captured with explicit `output` paths inside the result directory rather than disposable inline files;
 - a short win or fail recording only when motion or timing is material;
 - rendered WAV files only for authored audio under review;
 - a concise note containing controls, commands, observed values, and known limitations.

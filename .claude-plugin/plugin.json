@@ -1,0 +1,14 @@
+{
+  "name": "pyxel",
+  "displayName": "Pyxel",
+  "version": "1.4.0",
+  "description": "Build and verify Pyxel retro games: the pyxel skill plus the pyxel-mcp observation server.",
+  "author": {
+    "name": "Takashi Kitao",
+    "url": "https://github.com/kitao"
+  },
+  "homepage": "https://github.com/kitao/pyxel-skill",
+  "repository": "https://github.com/kitao/pyxel-skill",
+  "license": "MIT",
+  "keywords": ["pyxel", "game", "retro", "mcp", "agent-skill"]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "pyxel-skill",
+  "owner": {
+    "name": "Takashi Kitao",
+    "url": "https://github.com/kitao"
+  },
+  "metadata": {
+    "description": "Pyxel game development for AI agents: the pyxel skill with the pyxel-mcp server."
+  },
+  "plugins": [
+    {
+      "name": "pyxel",
+      "source": "./",
+      "description": "Build and verify Pyxel retro games: the pyxel skill plus the pyxel-mcp observation server.",
+      "license": "MIT",
+      "keywords": [
+        "pyxel",
+        "game",
+        "retro",
+        "mcp",
+        "agent-skill"
+      ]
+    }
+  ]
+}

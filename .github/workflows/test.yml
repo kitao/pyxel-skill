@@ -13,5 +13,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest
+      - run: pip install pytest skills-ref
       - run: pytest -q test_skill_content.py
+      - name: Validate against the Agent Skills specification
+        run: |
+          mkdir -p /tmp/skills
+          cp -R "$PWD" /tmp/skills/pyxel
+          agentskills validate /tmp/skills/pyxel

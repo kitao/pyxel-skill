@@ -2,14 +2,21 @@
 
 Read only the section relevant to the current problem.
 
-## Runs and Input
+## Runs and input
 
-- `pyxel.btn(KEY)` is continuous; `pyxel.btnp(KEY)` is a press edge.
-- Each input `buttons` event replaces the held set and persists; schedule `buttons: []` to release it.
-- Pass `random_seed` to `run` when randomness affects evidence. It covers Pyxel's RNG and the stdlib `random`, including initialization; give private `random.Random` instances an explicit seed.
-- Re-run from frame 0 with the cumulative input schedule. Use `until="<expr>"` with snapshots at `"end"` when the event frame is unknown.
-- Artifact arguments such as `output`, `output_pattern`, `render_path`, and `output_path` require absolute paths; screen-image outputs must end with lowercase `.png`.
-- State `attrs` are attribute paths, not expressions, calls, or `self.` prefixes; expose computed evidence as App attributes.
+- `pyxel.btn(KEY)` is continuous; `pyxel.btnp(KEY)` is a press edge. To press a key while another is held, schedule `["KEY_RIGHT", "KEY_SPACE"]` on one frame and `["KEY_RIGHT"]` on the next.
+- Each input `buttons` event replaces the held set and persists; schedule `buttons: []` to release everything.
+- Pass `random_seed` to `run` whenever randomness affects evidence. It seeds Pyxel's RNG and the stdlib `random`, including module initialization; give private `random.Random` instances an explicit seed.
+- Re-run from frame 0 with the cumulative input schedule. Use `until="<expr>"` with `"frame": "end"` snapshots when the event frame is unknown; `until_met` reports whether it held, and `null` means it was never evaluated.
+- State `attrs` are attribute paths on the App instance such as `player.x` or `enemies[0].y`, not expressions, calls, or `self.` prefixes. Expose computed evidence as attributes.
+- `stall_window_frames` ends a run early when per-frame `state` or `screen_grid` snapshots repeat for that many consecutive frames; use it to catch freezes without waiting for the frame budget.
+
+## Screen images and artifacts
+
+- `screen_image` with `inline: true` returns the PNG in the result; `scale` 2 to 4 keeps pixel art legible. The file is still written and its path reported, so `diff_frames` can compare it later.
+- Explicit paths (`output`, `output_pattern`, `render_path`, `output_path`) must be absolute, and screen-image outputs end with lowercase `.png`. Omit the path only for a single inline frame or render whose file is disposable; multi-frame captures always take `output_pattern`.
+- At most 12 inline images arrive per call; extra frames stay on disk and `log` says so. Prefer a few chosen frames over `frames: "all"`.
+- `video` takes `start_frame` and `end_frame` and writes `.gif`; an `.mp4` output needs ffmpeg and otherwise falls back to `.gif` with a warning.
 
 ## Drawing
 
@@ -18,17 +25,20 @@ Read only the section relevant to the current problem.
 - Keep state changes in `update()`; make `draw()` describe the current state.
 - Inspect captured pixels when HUD placement, legibility, feedback, or scene transitions matter.
 
-## Assets and Tilemaps
+## Assets and tilemaps
 
 - Build image and tilemap data before `pyxel.run()`, usually in `App.__init__` or a setup helper.
-- Use `read_image(..., render_path=<absolute path>)` to inspect a sprite region. For animation frames, render the regions explicitly and use `diff_frames` when a pixel comparison is useful.
+- Author small sprites in code with `pyxel.images[0].set(x, y, ["01100110", ...])`, one hex digit per pixel; 8x8 tiles with 3 or 4 colors read best.
+- Relative asset paths such as `pyxel.load("assets/game.pyxres")` resolve from the script's directory, as under `python game.py`.
+- Use `read_image(..., inline=True)` to look at a sprite region. Render animation frames separately and use `diff_frames` when a pixel comparison is useful.
 - `read_tilemap` reports `zero_tile_used` and `zero_tile_nonempty` separately. Decide whether tile `(0, 0)` is a problem from the game's blank-tile convention.
 
 ## Audio
 
 - Define verifiable sounds with `pyxel.sounds[N].set(...)`; note strings include octave digits such as `C2D2E2`, and `R` is a rest.
-- Use `read_audio(script=..., target={"sound": N}, output_path=<absolute path>)` or a music target. Check notes where available, duration, and peak; verify runtime cue/channel state separately. Claim sound quality only after listening—otherwise report it as not auditioned.
+- Use `read_audio(script=..., target={"sound": N}, output_path=<absolute path>)` or a music target. Check notes, duration, and peak; verify runtime cue and channel state separately. Music targets render a fixed 10-second window.
+- Claim sound quality only after listening; otherwise report it as not auditioned.
 
-## Visual Truth
+## Visual truth
 
-State can prove that a transition occurred while the captured frame reveals an unreadable or incorrect scene. Mechanics and pixels are separate evidence; check both when both matter.
+State can prove that a transition occurred while the captured frame shows an unreadable or incorrect scene. Mechanics and pixels are separate evidence; check both when both matter.
