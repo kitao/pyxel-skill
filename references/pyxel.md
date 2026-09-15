@@ -14,8 +14,8 @@ Read only the section relevant to the current problem.
 ## Screen images and artifacts
 
 - `screen_image` with `inline: true` returns the PNG in the result; `scale` 2 to 4 keeps pixel art legible. The file is still written and its path reported, so `diff_frames` can compare it later.
-- Explicit paths (`output`, `output_pattern`, `render_path`, `output_path`) must be absolute, and screen-image outputs end with lowercase `.png`. Omit the path only for a single inline frame or render whose file is disposable; multi-frame captures always take `output_pattern`.
-- At most 12 inline images arrive per call; extra frames stay on disk and `log` says so. Prefer a few chosen frames over `frames: "all"`.
+- Explicit paths (`output`, `output_pattern`, `render_path`, `output_path`) must be absolute, and screen-image outputs end with lowercase `.png`. Omit the path only for a single inline frame or render whose file is disposable; multi-frame screen images require `output_pattern` containing literal `{frame}` without a format specifier.
+- At most 12 inline images arrive per call; extra frames stay on disk and a separate text notice in the tool result says so. Read these notices as well as `log`. Prefer a few chosen frames over `frames: "all"`.
 - `video` takes `start_frame` and `end_frame` and writes `.gif`; an `.mp4` output needs ffmpeg and otherwise falls back to `.gif` with a warning.
 
 ## Drawing
