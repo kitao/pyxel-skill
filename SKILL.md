@@ -4,7 +4,7 @@ description: Build, debug, and verify games made with Pyxel, the retro game engi
 license: MIT
 compatibility: Requires the pyxel-mcp MCP server 1.3 or newer (Python 3.11+, installs Pyxel 2.9.6+). Run `uvx pyxel-mcp install` for client setup.
 metadata:
-  version: "1.4.0"
+  version: "1.4.1"
   pyxel-mcp: ">=1.3.0"
 ---
 

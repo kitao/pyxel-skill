@@ -6,7 +6,7 @@
 
 An [Agent Skill](https://agentskills.io) for building and verifying [Pyxel](https://github.com/kitao/pyxel) games. It tells the agent what to build, how to drive the game, and what counts as evidence; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools it drives.
 
-Version 1.4.0 targets pyxel-mcp >= 1.3.0, Pyxel >= 2.9.6, and Python >= 3.11.
+Version 1.4.1 targets pyxel-mcp >= 1.3.0, Pyxel >= 2.9.6, and Python >= 3.11.
 
 ## Install
 
@@ -79,6 +79,7 @@ claude plugin validate .
 
 | pyxel-skill | pyxel-mcp | Pyxel | Python |
 |---|---|---|---|
+| 1.4.1 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.4.0 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.3.0 | >= 1.2.0 | >= 2.9.6 | >= 3.11 |
 

@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.4.1
+
+- Clarify required output patterns for multi-frame screen images
+- Explain where inline-image limit notices appear in tool results
+
 ## 1.4.0
 
 - Require pyxel-mcp 1.3 and look at frames through inline screen images

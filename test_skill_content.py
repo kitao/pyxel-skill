@@ -15,7 +15,7 @@ PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 MCP_CONFIG = ROOT / ".mcp.json"
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 MCP_MINIMUM = "1.3.0"
 TOOLS = [
     "validate",
