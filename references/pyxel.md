@@ -36,8 +36,18 @@ Read only the section relevant to the current problem.
 ## Audio
 
 - Define verifiable sounds with `pyxel.sounds[N].set(...)`; note strings include octave digits such as `C2D2E2`, and `R` is a rest.
-- Use `read_audio(script=..., target={"sound": N}, output_path=<absolute path>)` or a music target. Check notes, duration, and peak; verify runtime cue and channel state separately. Music targets render a fixed 10-second window.
+- Use `read_audio` with a sound or music target. Check notes, duration, and peak; verify runtime cue and channel state separately. Music targets render a fixed 10-second window.
 - Claim sound quality only after listening; otherwise report it as not auditioned.
+
+For example, call `read_audio` with the script and output paths replaced:
+
+```json
+{
+  "script": "/absolute/path/game.py",
+  "target": {"sound": 0},
+  "output_path": "/absolute/path/sound.wav"
+}
+```
 
 ## Visual truth
 

@@ -6,7 +6,7 @@
 
 An [Agent Skill](https://agentskills.io) for building and verifying [Pyxel](https://github.com/kitao/pyxel) games. It tells the agent what to build, how to drive the game, and what counts as evidence; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools it drives.
 
-Version 1.4.1 targets pyxel-mcp >= 1.3.0, Pyxel >= 2.9.6, and Python >= 3.11.
+Version 1.4.2 targets pyxel-mcp >= 1.3.0, Pyxel >= 2.9.6, and Python >= 3.11.
 
 ## Install
 
@@ -19,18 +19,17 @@ claude plugin marketplace add kitao/pyxel-skill
 claude plugin install pyxel@pyxel-skill
 ```
 
-The plugin registers the `pyxel` MCP server as `uvx pyxel-mcp`, so do not add the server again by hand. The skill is available as `/pyxel:pyxel` and activates on its own for Pyxel work.
+The plugin registers the `pyxel` MCP server as `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp`, so do not add the server again by hand. The skill is available as `/pyxel:pyxel` and activates on its own for Pyxel work.
 
 ### Any agent with the skills CLI
 
-Register pyxel-mcp first, then add the skill:
+Add the skill:
 
 ```bash
-uvx pyxel-mcp install
 npx skills add kitao/pyxel-skill
 ```
 
-`uvx pyxel-mcp install` prints the setup command or config snippet for Claude Code, Codex CLI, Gemini CLI, Cursor, and VS Code. Restart the client after registering.
+For clients without automatic plugin registration, also follow [MCP setup](#mcp-setup). Claude Code recognizes this skill's plugin manifest and registers the bundled server; for a project install, trust the workspace and enable the server when prompted.
 
 ### Manual
 
@@ -58,6 +57,24 @@ mkdir -p ~/.claude/skills && ln -s ~/src/pyxel-skill ~/.claude/skills/pyxel
 
 Claude Code loads a full checkout under `~/.claude/skills` as the plugin `pyxel@skills-dir`, which registers the `pyxel` MCP server from `.mcp.json` just like the plugin install, so do not add the server again by hand.
 
+For Codex and other clients without automatic plugin registration, also follow [MCP setup](#mcp-setup).
+
+### MCP setup
+
+For a client without automatic plugin registration, print the setup examples:
+
+```bash
+uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp install
+```
+
+This command only prints instructions. Apply the command or configuration for your client, replacing the printed `uvx pyxel-mcp` with `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp`. For example, register it with Codex CLI using:
+
+```bash
+codex mcp add pyxel -- uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp
+```
+
+The version requirement prevents `uvx` from reusing an older installed tool. If the server is already registered, update its existing command; for a plugin-managed server, update the plugin. Restart the client and confirm `pyxel_info` reports pyxel-mcp 1.3.0 or newer.
+
 ## Contents
 
 - `SKILL.md` — trigger, runtime contract, default workflow, minimum evidence, and boundaries.
@@ -69,16 +86,19 @@ Claude Code loads a full checkout under `~/.claude/skills` as the plugin `pyxel@
 ## Development
 
 ```bash
-pip install pytest skills-ref
-pytest -q test_skill_content.py
+pip install pytest skills-ref uv 'mcp>=2,<3'
+pytest -q
 mkdir -p /tmp/skills && cp -R . /tmp/skills/pyxel && agentskills validate /tmp/skills/pyxel
 claude plugin validate .
 ```
+
+The runtime tests need network access to install published MCP packages into temporary environments. They exercise the bundled server command with an older uv tool installed, verify inline frames and state, and execute the documented audio request. To run only the content checks, use `pytest -q test_skill_content.py`.
 
 ## Compatibility
 
 | pyxel-skill | pyxel-mcp | Pyxel | Python |
 |---|---|---|---|
+| 1.4.2 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.4.1 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.4.0 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.3.0 | >= 1.2.0 | >= 2.9.6 | >= 3.11 |

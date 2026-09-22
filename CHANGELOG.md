@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.4.2
+
+- Enforce the minimum MCP version even with an older installed uv tool
+- Complete MCP registration and restart instructions across install paths
+- Test evidence requirements and documented API calls against a live server
+
 ## 1.4.1
 
 - Clarify required output patterns for multi-frame screen images

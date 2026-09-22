@@ -13,8 +13,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest skills-ref
-      - run: pytest -q test_skill_content.py
+      - run: pip install pytest skills-ref uv "mcp>=2,<3"
+      - run: pytest -q
       - name: Validate against the Agent Skills specification
         run: |
           mkdir -p /tmp/skills

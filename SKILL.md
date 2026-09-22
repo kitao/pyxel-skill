@@ -2,9 +2,9 @@
 name: pyxel
 description: Build, debug, and verify games made with Pyxel, the retro game engine for Python. Use whenever a task creates, changes, tests, or reviews a Pyxel game, or asks for a retro Python game that should use Pyxel. Do not use for other engines or general Python work.
 license: MIT
-compatibility: Requires the pyxel-mcp MCP server 1.3 or newer (Python 3.11+, installs Pyxel 2.9.6+). Run `uvx pyxel-mcp install` for client setup.
+compatibility: Requires the pyxel-mcp MCP server 1.3 or newer (Python 3.11+, installs Pyxel 2.9.6+). Use `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp` as the server command.
 metadata:
-  version: "1.4.1"
+  version: "1.4.2"
   pyxel-mcp: ">=1.3.0"
 ---
 
@@ -17,12 +17,12 @@ Build the smallest complete game that satisfies the request, then prove it from 
 pyxel-mcp provides eight observation tools. They report facts; judging them is your job.
 
 - `validate` reports syntax errors and recognizable Pyxel code patterns without running the script.
-- `run` drives frames headlessly with scheduled input, stops early on `until`, and captures `state`, `screen_image`, `screen_grid`, or `video`. A `screen_image` with `inline: true` comes back as an image in the result.
+- `run` drives headless frames with scheduled input, stops on `until`, and captures `state`, `screen_image`, `screen_grid`, or `video`. `screen_image` with `inline: true` returns an image.
 - `pyxel_info` reports versions, bundled examples, and resource URIs.
 - `read_palette`, `read_image`, `read_tilemap`, and `read_audio` inspect the palette, image banks, tilemaps, and rendered audio; `read_image` and `read_tilemap` take `inline=true` to return their renders as images.
 - `diff_frames` compares two captured PNGs.
 
-If the tools are missing, run `uvx pyxel-mcp install` and restart the client. If `pyxel_info` reports a version below 1.3.0, run `uvx --refresh-package pyxel-mcp pyxel-mcp install`. While blocked, use focused logic tests plus direct headless Pyxel runs, and say that visual and interaction verification is weaker.
+If tools are missing or `pyxel_info` reports a version below 1.3.0, update the plugin or set the client's MCP command to `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp`. Append `install` for setup examples; it only prints instructions. Apply the appropriate registration with this versioned command. Avoid duplicate plugin registrations. Restart the client and recheck `pyxel_info`. While blocked, use focused logic tests plus direct headless Pyxel runs, and report weaker visual and interaction verification.
 
 ## Workflow
 
@@ -45,9 +45,9 @@ Add only relevant evidence: success and failure paths for action games, legal an
 
 ## References
 
-- [references/pyxel.md](references/pyxel.md): input, drawing, assets, audio, and deterministic runs. Read when implementing or diagnosing those areas.
-- [references/design.md](references/design.md): presentation and game-feel defaults. Read when creating a new game or asked to polish one.
-- [references/strict-mode.md](references/strict-mode.md): opt-in release evidence. Read when the user asks for release confidence, an audit, a proof bundle, or a long multi-session build.
+- [references/pyxel.md](references/pyxel.md): input, drawing, assets, audio, and determinism. Read for related implementation or diagnosis.
+- [references/design.md](references/design.md): presentation and game-feel defaults for creating or polishing games.
+- [references/strict-mode.md](references/strict-mode.md): opt-in evidence for release confidence, audits, proof bundles, or long multi-session builds.
 
 ## Boundaries
 

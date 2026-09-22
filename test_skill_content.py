@@ -15,8 +15,9 @@ PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 MCP_CONFIG = ROOT / ".mcp.json"
 
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 MCP_MINIMUM = "1.3.0"
+MCP_COMMAND = f"uvx --from 'pyxel-mcp>={MCP_MINIMUM}' pyxel-mcp"
 TOOLS = [
     "validate",
     "run",
@@ -44,6 +45,12 @@ def _frontmatter() -> tuple[dict[str, str], str]:
 def _body() -> str:
     text = SKILL.read_text()
     return text.split("---", 2)[2]
+
+
+def _section(text: str, heading: str) -> str:
+    match = re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)
+    assert match is not None, f"Missing section: {heading}"
+    return re.split(r"^## ", text[match.end() :], maxsplit=1, flags=re.MULTILINE)[0]
 
 
 def _skill_markdown() -> list[Path]:
@@ -78,13 +85,17 @@ def test_body_is_short_with_one_shallow_reference_layer():
 
 
 def test_runtime_contract_matches_pyxel_mcp():
-    body = _body()
+    runtime = _section(_body(), "Runtime")
     for tool in TOOLS:
-        assert f"`{tool}`" in body
-    assert "eight observation tools" in body
-    assert f"below {MCP_MINIMUM}" in body
-    assert "uvx pyxel-mcp install" in body
-    assert "--refresh-package pyxel-mcp" in body
+        assert f"`{tool}`" in runtime
+    assert "eight observation tools" in runtime
+    assert f"below {MCP_MINIMUM}" in runtime
+    assert MCP_COMMAND in runtime
+    assert "only prints instructions" in runtime
+    assert "apply" in runtime.lower() and "registration" in runtime
+    assert "duplicate plugin registrations" in runtime
+    assert "restart" in runtime.lower() and "recheck `pyxel_info`" in runtime
+    assert "--refresh-package" not in runtime
 
     text = "\n".join(path.read_text() for path in _skill_markdown())
     for removed in [
@@ -99,16 +110,37 @@ def test_runtime_contract_matches_pyxel_mcp():
 
 
 def test_default_loop_requires_direct_mechanical_and_visual_evidence():
-    body = _body().lower()
-    assert "inline: true" in body and "scale` 2 to 4" in body
-    assert "`state` for mechanics" in body
-    assert "random_seed" in body and "input schedule" in body
-    assert "until" in body and '"frame": "end"' in body
-    assert "read `log` even when `ok` is true" in body
-    assert "non-blank screen is not evidence" in body
-    assert "task-specific" in body
-    assert "not auditioned" in body
-    assert "relevant warnings" in body
+    workflow = _section(_body(), "Workflow").lower()
+    assert "inline: true" in workflow and "scale` 2 to 4" in workflow
+    assert "`state` for mechanics" in workflow
+    assert "random_seed" in workflow and "input schedule" in workflow
+    assert "until" in workflow and '"frame": "end"' in workflow
+    assert "read `log` even when `ok` is true" in workflow
+    assert "non-blank screen is not evidence" in workflow
+    assert "relevant warnings" in workflow
+    assert "not auditioned" in _section(_body(), "Boundaries").lower()
+
+
+def test_minimum_evidence_covers_execution_pixels_and_state():
+    evidence = _section(_body(), "Minimum evidence").lower()
+    assert "`validate`" in evidence and "no errors" in evidence
+    assert "smoke `run`" in evidence and "intended stop" in evidence
+    for failure in ("crash", "timeout", "unexpected stall"):
+        assert failure in evidence
+    assert "captured frame" in evidence and "inspected directly" in evidence
+    assert "task-specific state predicate" in evidence and "checked" in evidence
+
+
+def test_strict_mode_preserves_release_gates():
+    strict = (REFERENCES / "strict-mode.md").read_text()
+    gate = _section(strict, "Gate").lower()
+    assert "`validate`" in gate and "no errors" in gate
+    assert "smoke `run`" in gate and "intended stop" in gate
+    assert "captured frames" in gate and "direct inspection" in gate
+    assert "task-specific state predicates" in gate and "pass" in gate
+    for path in ("success", "failure", "retry", "illegal-action"):
+        assert path in gate
+    assert "only when the game defines them" in gate
 
 
 def test_references_are_task_specific():
@@ -151,7 +183,12 @@ def test_plugin_manifest_bundles_skill_and_server():
     assert "version" not in marketplace["plugins"][0]  # plugin.json is the source of truth
 
     servers = json.loads(MCP_CONFIG.read_text())["mcpServers"]
-    assert servers == {"pyxel": {"command": "uvx", "args": ["pyxel-mcp"]}}
+    assert servers == {
+        "pyxel": {
+            "command": "uvx",
+            "args": ["--from", f"pyxel-mcp>={MCP_MINIMUM}", "pyxel-mcp"],
+        }
+    }
 
 
 def test_readme_and_changelog_agree_with_the_skill():
@@ -161,7 +198,7 @@ def test_readme_and_changelog_agree_with_the_skill():
     assert "claude plugin marketplace add kitao/pyxel-skill" in readme
     assert "claude plugin install pyxel@pyxel-skill" in readme
     assert "npx skills add kitao/pyxel-skill" in readme
-    assert "uvx pyxel-mcp install" in readme
+    assert f"{MCP_COMMAND} install" in readme
     assert "must be named `pyxel`" in readme
     assert "~/.agents/skills/pyxel" in readme
     assert "${CODEX_HOME:-$HOME/.codex}/skills" in readme
