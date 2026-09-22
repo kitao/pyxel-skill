@@ -2,10 +2,10 @@
 name: pyxel
 description: Build, debug, and verify games made with Pyxel, the retro game engine for Python. Use whenever a task creates, changes, tests, or reviews a Pyxel game, or asks for a retro Python game that should use Pyxel. Do not use for other engines or general Python work.
 license: MIT
-compatibility: Requires the pyxel-mcp MCP server 1.3 or newer (Python 3.11+, installs Pyxel 2.9.6+). Use `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp` as the server command.
+compatibility: Requires the pyxel-mcp MCP server 1.3.1 or newer (Python 3.11+, installs Pyxel 2.9.6+). Use `uvx --from 'pyxel-mcp>=1.3.1' pyxel-mcp` as the server command.
 metadata:
   version: "1.4.2"
-  pyxel-mcp: ">=1.3.0"
+  pyxel-mcp: ">=1.3.1"
 ---
 
 # Pyxel
@@ -22,7 +22,7 @@ pyxel-mcp provides eight observation tools. They report facts; judging them is y
 - `read_palette`, `read_image`, `read_tilemap`, and `read_audio` inspect the palette, image banks, tilemaps, and rendered audio; `read_image` and `read_tilemap` take `inline=true` to return their renders as images.
 - `diff_frames` compares two captured PNGs.
 
-If tools are missing or `pyxel_info` reports a version below 1.3.0, update the plugin or set the client's MCP command to `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp`. Append `install` for setup examples; it only prints instructions. Apply the appropriate registration with this versioned command. Avoid duplicate plugin registrations. Restart the client and recheck `pyxel_info`. While blocked, use focused logic tests plus direct headless Pyxel runs, and report weaker visual and interaction verification.
+If tools are missing or `pyxel_info` reports a version below 1.3.1, update the plugin or set the client's MCP command to `uvx --from 'pyxel-mcp>=1.3.1' pyxel-mcp`. Append `install` for setup examples; it only prints instructions. Apply the appropriate registration with this versioned command. Avoid duplicate plugin registrations. Restart the client and recheck `pyxel_info`. While blocked, use focused logic tests plus direct headless Pyxel runs, and report weaker visual and interaction verification.
 
 ## Workflow
 

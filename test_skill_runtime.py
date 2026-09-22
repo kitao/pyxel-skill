@@ -45,7 +45,7 @@ def server_parameters(tmp_path_factory):
     uv = shutil.which("uv")
     assert uv is not None, "Install uv to run the MCP integration tests"
     installation = subprocess.run(
-        [uv, "tool", "install", "pyxel-mcp==1.2.0"],
+        [uv, "tool", "install", "pyxel-mcp==1.3.0"],
         env=env,
         capture_output=True,
         text=True,
@@ -67,7 +67,7 @@ def server_parameters(tmp_path_factory):
         text=True,
         timeout=15,
     )
-    assert installed.stdout.strip() == "1.2.0"
+    assert installed.stdout.strip() == "1.3.0"
 
     config = json.loads((ROOT / ".mcp.json").read_text())["mcpServers"]["pyxel"]
     return StdioServerParameters(
@@ -104,7 +104,7 @@ def test_bundled_server_runs_seeded_input_and_inline_capture(server_parameters):
     async def exercise(session):
         _, info = await _call(session, "pyxel_info", {})
         version = tuple(int(part) for part in info["pyxel_mcp_version"].split(".")[:3])
-        assert version >= (1, 3, 0), info
+        assert version >= (1, 3, 1), info
 
         request = {
             "script": str(GAME),
@@ -180,6 +180,9 @@ def test_documented_audio_request_renders_wav(server_parameters, tmp_path, examp
     async def exercise(session):
         _, data = await _call(session, "read_audio", request)
         assert [note["note"] for note in data["notes"]] == ["C2", "D2", "E2", "rest"]
+        assert [note["tone"] for note in data["notes"]] == ["t", "p", "t", "p"]
+        assert [note["volume"] for note in data["notes"]] == [1, 7, 1, 7]
+        assert [note["effect"] for note in data["notes"]] == ["n", "h", "q", "n"]
         assert data["peak_amplitude"] > 0, data
         assert data["duration_seconds"] > 0, data
         assert Path(data["path"]) == Path(request["output_path"]).resolve()

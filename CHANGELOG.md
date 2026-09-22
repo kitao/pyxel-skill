@@ -2,6 +2,7 @@
 
 ## 1.4.2
 
+- Require pyxel-mcp 1.3.1 for corrected audio note metadata
 - Enforce the minimum MCP version even with an older installed uv tool
 - Complete MCP registration and restart instructions across install paths
 - Test the bundled server and documented API calls against a live server

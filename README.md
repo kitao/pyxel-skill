@@ -6,7 +6,7 @@
 
 An [Agent Skill](https://agentskills.io) for building and verifying [Pyxel](https://github.com/kitao/pyxel) games. It guides implementation and verification for the requested game; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools it drives.
 
-Version 1.4.2 targets pyxel-mcp >= 1.3.0, Pyxel >= 2.9.6, and Python >= 3.11.
+Version 1.4.2 targets pyxel-mcp >= 1.3.1, Pyxel >= 2.9.6, and Python >= 3.11.
 
 ## Install
 
@@ -19,7 +19,7 @@ claude plugin marketplace add kitao/pyxel-skill
 claude plugin install pyxel@pyxel-skill
 ```
 
-The plugin registers the `pyxel` MCP server as `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp`, so do not add the server again by hand. The skill is available as `/pyxel:pyxel` and activates on its own for Pyxel work.
+The plugin registers the `pyxel` MCP server as `uvx --from 'pyxel-mcp>=1.3.1' pyxel-mcp`, so do not add the server again by hand. The skill is available as `/pyxel:pyxel` and activates on its own for Pyxel work.
 
 ### Any agent with the skills CLI
 
@@ -64,16 +64,16 @@ For Codex and other clients without automatic plugin registration, also follow [
 For a client without automatic plugin registration, print the setup examples:
 
 ```bash
-uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp install
+uvx --from 'pyxel-mcp>=1.3.1' pyxel-mcp install
 ```
 
-This command only prints instructions. Apply the command or configuration for your client, replacing the printed `uvx pyxel-mcp` with `uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp`. For example, register it with Codex CLI using:
+This command only prints instructions. Apply the command or configuration for your client, replacing the printed `uvx pyxel-mcp` with `uvx --from 'pyxel-mcp>=1.3.1' pyxel-mcp`. For example, register it with Codex CLI using:
 
 ```bash
-codex mcp add pyxel -- uvx --from 'pyxel-mcp>=1.3.0' pyxel-mcp
+codex mcp add pyxel -- uvx --from 'pyxel-mcp>=1.3.1' pyxel-mcp
 ```
 
-The version requirement prevents `uvx` from reusing an older installed tool. If the server is already registered, update its existing command; for a plugin-managed server, update the plugin. Restart the client and confirm `pyxel_info` reports pyxel-mcp 1.3.0 or newer.
+The version requirement prevents `uvx` from reusing an older installed tool. If the server is already registered, update its existing command; for a plugin-managed server, update the plugin. Restart the client and confirm `pyxel_info` reports pyxel-mcp 1.3.1 or newer.
 
 ## Contents
 
@@ -100,7 +100,7 @@ Content checks cover distribution metadata, local links, and server commands. Re
 
 | pyxel-skill | pyxel-mcp | Pyxel | Python |
 |---|---|---|---|
-| 1.4.2 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
+| 1.4.2 | >= 1.3.1 | >= 2.9.6 | >= 3.11 |
 | 1.4.1 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.4.0 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.3.0 | >= 1.2.0 | >= 2.9.6 | >= 3.11 |

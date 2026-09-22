@@ -14,7 +14,7 @@ class App:
         self.presses = 0
         self.module_random = MODULE_RANDOM
         self.pyxel_random = pyxel.rndi(0, 1000000)
-        pyxel.sounds[0].set("C2D2E2R", "t", "7", "n", 10)
+        pyxel.sounds[0].set("C2D2E2R", "tp", "17", "nhq", 10)
         pyxel.run(self.update, self.draw)
 
     def update(self):
