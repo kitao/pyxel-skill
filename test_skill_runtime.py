@@ -157,13 +157,20 @@ def test_bundled_server_runs_seeded_input_and_inline_capture(server_parameters):
     _run(server_parameters, exercise)
 
 
-def test_documented_audio_request_renders_wav(server_parameters, tmp_path):
+def _audio_examples():
     reference = (ROOT / "references" / "pyxel.md").read_text()
-    audio = re.search(r"^## Audio\n(.*?)(?=^## |\Z)", reference, re.MULTILINE | re.DOTALL)
-    assert audio is not None, "Missing audio reference"
-    blocks = re.findall(r"```json\s*\n(.*?)\n```", audio.group(1), flags=re.DOTALL)
-    assert len(blocks) == 1, "Keep one executable request in the audio reference"
-    request = json.loads(blocks[0])
+    examples = [
+        json.loads(block)
+        for block in re.findall(r"```json\s*\n(.*?)\n```", reference, flags=re.DOTALL)
+    ]
+    requests = [example for example in examples if "target" in example]
+    assert requests, "Missing executable audio example"
+    return requests
+
+
+@pytest.mark.parametrize("example", _audio_examples())
+def test_documented_audio_request_renders_wav(server_parameters, tmp_path, example):
+    request = example.copy()
     # Preserve the documented target and all other fields so invalid API names fail.
     for key in ("script", "output_path"):
         assert isinstance(request[key], str) and request[key], key

@@ -1,233 +1,63 @@
-"""Structural and contract checks for the public skill."""
+"""Distribution contracts; editorial guidance is reviewed as prose."""
 
 from __future__ import annotations
 
 import json
 import re
+import shlex
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+from skills_ref import read_properties
 
 ROOT = Path(__file__).resolve().parent
-SKILL = ROOT / "SKILL.md"
-README = ROOT / "README.md"
-CHANGELOG = ROOT / "CHANGELOG.md"
-REFERENCES = ROOT / "references"
-PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
-MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
-MCP_CONFIG = ROOT / ".mcp.json"
-
-VERSION = "1.4.2"
-MCP_MINIMUM = "1.3.0"
-MCP_COMMAND = f"uvx --from 'pyxel-mcp>={MCP_MINIMUM}' pyxel-mcp"
-TOOLS = [
-    "validate",
-    "run",
-    "pyxel_info",
-    "read_palette",
-    "read_image",
-    "read_tilemap",
-    "read_audio",
-    "diff_frames",
-]
 
 
-def _frontmatter() -> tuple[dict[str, str], str]:
-    lines = SKILL.read_text().splitlines()
-    assert lines[0] == "---"
-    end = lines.index("---", 1)
-    fields = {
-        line.split(":", 1)[0]: line.split(":", 1)[1].strip().strip('"')
-        for line in lines[1:end]
-        if line and not line.startswith(" ") and ":" in line
-    }
-    return fields, "\n".join(lines[1:end])
-
-
-def _body() -> str:
-    text = SKILL.read_text()
-    return text.split("---", 2)[2]
-
-
-def _section(text: str, heading: str) -> str:
-    match = re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE)
-    assert match is not None, f"Missing section: {heading}"
-    return re.split(r"^## ", text[match.end() :], maxsplit=1, flags=re.MULTILINE)[0]
-
-
-def _skill_markdown() -> list[Path]:
-    return [SKILL, *sorted(REFERENCES.glob("*.md"))]
-
-
-def test_frontmatter_follows_the_agent_skills_spec():
-    fields, raw = _frontmatter()
-    assert set(fields) == {"name", "description", "license", "compatibility", "metadata"}
-    assert fields["name"] == "pyxel"
-    assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", fields["name"])
-    assert "Pyxel" in fields["description"] and "Do not use" in fields["description"]
-    assert 1 <= len(fields["description"]) <= 1024
-    assert "pyxel-mcp" in fields["compatibility"] and "1.3" in fields["compatibility"]
-    assert 1 <= len(fields["compatibility"]) <= 500
-    assert fields["license"] == "MIT"
-    assert f'  version: "{VERSION}"' in raw
-    assert f'  pyxel-mcp: ">={MCP_MINIMUM}"' in raw
-
-
-def test_body_is_short_with_one_shallow_reference_layer():
-    assert len(_body().split()) <= 550
-    assert {path.name for path in REFERENCES.glob("*.md")} == {
-        "pyxel.md",
-        "design.md",
-        "strict-mode.md",
-    }
-    assert not any(path.is_file() for path in REFERENCES.glob("*/*"))
-    body = _body()
-    for name in ("pyxel.md", "design.md", "strict-mode.md"):
-        assert f"](references/{name})" in body
-
-
-def test_runtime_contract_matches_pyxel_mcp():
-    runtime = _section(_body(), "Runtime")
-    for tool in TOOLS:
-        assert f"`{tool}`" in runtime
-    assert "eight observation tools" in runtime
-    assert f"below {MCP_MINIMUM}" in runtime
-    assert MCP_COMMAND in runtime
-    assert "only prints instructions" in runtime
-    assert "apply" in runtime.lower() and "registration" in runtime
-    assert "duplicate plugin registrations" in runtime
-    assert "restart" in runtime.lower() and "recheck `pyxel_info`" in runtime
-    assert "--refresh-package" not in runtime
-
-    text = "\n".join(path.read_text() for path in _skill_markdown())
-    for removed in [
-        "read_animation",
-        "layout snapshot",
-        "ASSERT PASS",
-        "universal quality score",
-        "pyxel://anti-patterns",
-        "pyxel-mcp 1.2+",
-    ]:
-        assert removed not in text
-
-
-def test_default_loop_requires_direct_mechanical_and_visual_evidence():
-    workflow = _section(_body(), "Workflow").lower()
-    assert "inline: true" in workflow and "scale` 2 to 4" in workflow
-    assert "`state` for mechanics" in workflow
-    assert "random_seed" in workflow and "input schedule" in workflow
-    assert "until" in workflow and '"frame": "end"' in workflow
-    assert "read `log` even when `ok` is true" in workflow
-    assert "non-blank screen is not evidence" in workflow
-    assert "relevant warnings" in workflow
-    assert "not auditioned" in _section(_body(), "Boundaries").lower()
-
-
-def test_minimum_evidence_covers_execution_pixels_and_state():
-    evidence = _section(_body(), "Minimum evidence").lower()
-    assert "`validate`" in evidence and "no errors" in evidence
-    assert "smoke `run`" in evidence and "intended stop" in evidence
-    for failure in ("crash", "timeout", "unexpected stall"):
-        assert failure in evidence
-    assert "captured frame" in evidence and "inspected directly" in evidence
-    assert "task-specific state predicate" in evidence and "checked" in evidence
-
-
-def test_strict_mode_preserves_release_gates():
-    strict = (REFERENCES / "strict-mode.md").read_text()
-    gate = _section(strict, "Gate").lower()
-    assert "`validate`" in gate and "no errors" in gate
-    assert "smoke `run`" in gate and "intended stop" in gate
-    assert "captured frames" in gate and "direct inspection" in gate
-    assert "task-specific state predicates" in gate and "pass" in gate
-    for path in ("success", "failure", "retry", "illegal-action"):
-        assert path in gate
-    assert "only when the game defines them" in gate
-
-
-def test_references_are_task_specific():
-    pyxel = (REFERENCES / "pyxel.md").read_text().lower()
-    design = (REFERENCES / "design.md").read_text().lower()
-    strict = (REFERENCES / "strict-mode.md").read_text().lower()
-
-    assert "inline: true" in pyxel and "12 inline images" in pyxel
-    assert "must be absolute" in pyxel and ".png" in pyxel
-    assert "pyxel.btnp" in pyxel and "colkey=0" in pyxel
-    assert "attribute paths" in pyxel and "self." in pyxel
-    assert "random.random" in pyxel and "explicit seed" in pyxel
-    assert "relative asset paths" in pyxel and "script's directory" in pyxel
-    assert "stall_window_frames" in pyxel and "until_met" in pyxel
-    assert "images[0].set" in pyxel
-    assert "not auditioned" in pyxel
-
-    assert "solid black" in design and "palette" in design
-    assert "feedback" in design and "channel 3" in design
-    assert "inline frame" in design
-
-    assert "opt-in" in strict and "proof" in strict
-    assert "explicit `output` paths" in strict
-
-
-def test_plugin_manifest_bundles_skill_and_server():
-    plugin = json.loads(PLUGIN.read_text())
-    assert plugin["name"] == "pyxel"
-    assert plugin["version"] == VERSION
-    assert plugin["license"] == "MIT"
-    assert plugin["repository"] == "https://github.com/kitao/pyxel-skill"
-    assert "skills" not in plugin  # the root SKILL.md is the single skill
-
-    marketplace = json.loads(MARKETPLACE.read_text())
-    assert marketplace["name"] == "pyxel-skill"
-    assert marketplace["owner"]["name"]
-    assert marketplace["metadata"]["description"]
-    assert [entry["name"] for entry in marketplace["plugins"]] == ["pyxel"]
-    assert marketplace["plugins"][0]["source"] == "./"
-    assert "version" not in marketplace["plugins"][0]  # plugin.json is the source of truth
-
-    servers = json.loads(MCP_CONFIG.read_text())["mcpServers"]
-    assert servers == {
-        "pyxel": {
-            "command": "uvx",
-            "args": ["--from", f"pyxel-mcp>={MCP_MINIMUM}", "pyxel-mcp"],
-        }
-    }
-
-
-def test_readme_and_changelog_agree_with_the_skill():
-    readme = README.read_text()
-    assert f"Version {VERSION} targets pyxel-mcp >= {MCP_MINIMUM}" in readme
-    assert f"| {VERSION} | >= {MCP_MINIMUM} | >= 2.9.6 | >= 3.11 |" in readme
-    assert "claude plugin marketplace add kitao/pyxel-skill" in readme
-    assert "claude plugin install pyxel@pyxel-skill" in readme
-    assert "npx skills add kitao/pyxel-skill" in readme
-    assert f"{MCP_COMMAND} install" in readme
-    assert "must be named `pyxel`" in readme
-    assert "~/.agents/skills/pyxel" in readme
-    assert "${CODEX_HOME:-$HOME/.codex}/skills" in readme
-    assert "~/.claude/skills/pyxel" in readme
-    assert "## Default Loop" not in readme
-
-    changelog = CHANGELOG.read_text()
-    assert changelog.startswith("# Change Log\n\n## " + VERSION + "\n")
-    for line in changelog.splitlines():
-        assert len(line) <= 80, line
-
-
-def test_repo_contains_no_server_or_distribution_plumbing():
-    forbidden = [
-        ROOT / "src" / "pyxel_mcp",
-        ROOT / "server.json",
-        ROOT / "build_hooks.py",
-        ROOT / "hooks",
-        ROOT / "knowledge",
-        ROOT / "skills",
+def test_release_metadata_agrees():
+    skill = read_properties(ROOT)
+    plugin = json.loads((ROOT / ".claude-plugin/plugin.json").read_text())
+    assert skill.name == plugin["name"] == "pyxel"
+    assert skill.license == plugin["license"] == "MIT"
+    version = plugin["version"]
+    assert skill.metadata["version"] == version
+    readme = (ROOT / "README.md").read_text()
+    rows = [
+        [cell.strip() for cell in line.strip("|").split("|")]
+        for line in readme.splitlines()
+        if line.startswith("|")
     ]
-    assert [str(path.relative_to(ROOT)) for path in forbidden if path.exists()] == []
+    release = [row for row in rows if row[0] == version]
+    assert len(release) == 1, "Current release must have a compatibility row"
+    assert release[0][1].replace(" ", "") == skill.metadata["pyxel-mcp"]
+    releases = re.findall(r"^## (\S+)", (ROOT / "CHANGELOG.md").read_text(), re.MULTILINE)
+    assert releases[0] == version
 
-    text = "\n".join(path.read_text().lower() for path in _skill_markdown())
-    for term in ["publish-skill", "pyxel://workflow", "bundled skill"]:
-        assert term not in text
+
+def test_local_document_links_resolve():
+    documents = [*ROOT.glob("*.md"), *(ROOT / "references").rglob("*.md")]
+    for document in documents:
+        for target in re.findall(r"\]\(([^\s)]+)\)", document.read_text()):
+            link = urlsplit(target)
+            if link.scheme or link.netloc or not link.path:
+                continue
+            path = document.parent / unquote(link.path)
+            assert path.exists(), f"Broken link in {document.name}: {target}"
 
 
-def test_local_agent_state_is_ignored():
-    ignore = (ROOT / ".gitignore").read_text()
-    assert ".claude/" in ignore
-    assert ".superpowers/" in ignore
+def test_bundled_command_matches_documented_requirement():
+    skill = read_properties(ROOT)
+    config = json.loads((ROOT / ".mcp.json").read_text())
+    server = config["mcpServers"]["pyxel"]
+    command = ["uvx", "--from", f"pyxel-mcp{skill.metadata['pyxel-mcp']}", "pyxel-mcp"]
+    assert [server["command"], *server["args"]] == command
+    for name in ("SKILL.md", "README.md"):
+        assert shlex.join(command) in (ROOT / name).read_text(), name
+
+
+def test_marketplace_resolves_to_the_plugin():
+    marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
+    plugin = json.loads((ROOT / ".claude-plugin/plugin.json").read_text())
+    entry = next(item for item in marketplace["plugins"] if item["name"] == plugin["name"])
+    assert (ROOT / entry["source"]).resolve() == ROOT
+    if "version" in entry:
+        assert entry["version"] == plugin["version"]

@@ -1,33 +1,22 @@
 # Strict Mode
 
-Strict mode is opt-in. Use it for release readiness, adversarial review, a requested proof bundle, or work large enough that a lightweight loop no longer provides reliable continuity.
+Use for requested release checks, audits, or proof bundles. Extend the verification workflow in [SKILL.md](../SKILL.md) with coverage of the game's relevant paths and retained evidence; ordinary edits do not require this mode.
+
+## Coverage
+
+- Exercise reachable success, failure, retry, and rejected actions when the game defines them. Choose concrete cases from its rules: a puzzle may need a solvable route and an illegal move; an action game may need collision consequences and recovery.
+- Check representative scenes directly, including transitions and HUD changes affected by the work. Use a recording or multiple frames when timing matters; use `diff_frames` when a pixel comparison answers a specific question.
+- Render the sound or music targets under review and verify that the intended runtime events trigger them. Distinguish successful rendering from a listening judgment.
+- Use `read_palette`, `read_image`, or `read_tilemap` when their facts help diagnose an asset issue.
+
+Resolve observed defects and rerun affected checks before declaring readiness. Report uncovered paths or unavailable checks as limitations; successful tool calls alone do not establish that the game meets the request.
 
 ## Evidence
 
-Keep evidence under one project-local result directory chosen with the user or consistent with the repository. Include only artifacts that prove the current game:
+When evidence must be retained, use the project's existing location or an agreed output directory. Save only what supports the review:
 
-- representative start, play, success, and failure frames when those states exist, captured with explicit `output` paths inside the result directory rather than disposable inline files;
-- a short win or fail recording only when motion or timing is material;
-- rendered WAV files only for authored audio under review;
-- a concise note containing controls, commands, observed values, and known limitations.
+- representative frames with explicit `output` paths rather than disposable inline files;
+- recordings or WAV files for motion or audio checks that required them;
+- controls, reproduction commands, observed results, and limitations in the requested report or existing review record.
 
-Do not invent a fixed directory convention when the repository already has one.
-
-## Gate
-
-Run in this order and stop when a gate fails:
-
-1. `validate` has no errors; relevant warnings are resolved or justified.
-2. A smoke `run` reaches the intended stop without crash, timeout, or unexpected stall.
-3. Captured frames match the requested scenes under direct inspection.
-4. Task-specific state predicates pass.
-5. Success, failure, retry, and illegal-action paths are checked only when the game defines them.
-6. `diff_frames` confirms change only where motion is expected.
-7. Every used sound or music target required by the brief renders through `read_audio`.
-8. Final behavior and presentation agree with the user's request.
-
-Use `read_palette`, `read_image`, or `read_tilemap` only when their facts answer a gate question. Create a machine-readable report only when the user or downstream automation needs one.
-
-## Scope
-
-Choose proof from the game, not from a generic genre checklist. Sokoban needs a solvable route and rejected illegal pushes; an action game needs collision consequences and reachable terminal states. Neither inherits checks that do not bear on its rules.
+Create a separate report file or machine-readable bundle only when requested or needed by downstream work.

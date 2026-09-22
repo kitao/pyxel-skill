@@ -4,7 +4,7 @@
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-spec_compliant-blue)](https://agentskills.io/specification)
 [![License](https://img.shields.io/github/license/kitao/pyxel-skill)](LICENSE)
 
-An [Agent Skill](https://agentskills.io) for building and verifying [Pyxel](https://github.com/kitao/pyxel) games. It tells the agent what to build, how to drive the game, and what counts as evidence; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools it drives.
+An [Agent Skill](https://agentskills.io) for building and verifying [Pyxel](https://github.com/kitao/pyxel) games. It guides implementation and verification for the requested game; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools it drives.
 
 Version 1.4.2 targets pyxel-mcp >= 1.3.0, Pyxel >= 2.9.6, and Python >= 3.11.
 
@@ -77,10 +77,10 @@ The version requirement prevents `uvx` from reusing an older installed tool. If 
 
 ## Contents
 
-- `SKILL.md` — trigger, runtime contract, default workflow, minimum evidence, and boundaries.
+- `SKILL.md` — trigger, runtime setup, implementation and verification workflow, and boundaries.
 - `references/pyxel.md` — Pyxel behavior for input, drawing, assets, audio, and deterministic runs.
-- `references/design.md` — presentation and game-feel defaults for new or polished games.
-- `references/strict-mode.md` — opt-in release evidence and gates.
+- `references/design.md` — presentation and feedback for new or polished games.
+- `references/strict-mode.md` — broader coverage and retained evidence for release checks and audits.
 - `.claude-plugin/` and `.mcp.json` — Claude Code plugin manifest, marketplace entry, and bundled server configuration.
 
 ## Development
@@ -93,6 +93,8 @@ claude plugin validate .
 ```
 
 The runtime tests need network access to install published MCP packages into temporary environments. They exercise the bundled server command with an older uv tool installed, verify inline frames and state, and execute the documented audio request. To run only the content checks, use `pytest -q test_skill_content.py`.
+
+Content checks cover distribution metadata, local links, and server commands. Review prose changes for scope, clarity, and appropriate evidence; wording and document length are not test contracts.
 
 ## Compatibility
 

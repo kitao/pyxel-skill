@@ -23,12 +23,11 @@ Read only the section relevant to the current problem.
 - Call `pyxel.cls(color)` at the start of `draw()` unless retained pixels are deliberate.
 - Use `colkey=0` on `blt()` when palette index 0 is transparent.
 - Keep state changes in `update()`; make `draw()` describe the current state.
-- Inspect captured pixels when HUD placement, legibility, feedback, or scene transitions matter.
 
 ## Assets and tilemaps
 
 - Build image and tilemap data before `pyxel.run()`, usually in `App.__init__` or a setup helper.
-- Author small sprites in code with `pyxel.images[0].set(x, y, ["01100110", ...])`, one hex digit per pixel; 8x8 tiles with 3 or 4 colors read best.
+- For code-generated sprites, `pyxel.images[0].set(x, y, ["01100110", ...])` takes one hex digit per pixel.
 - Relative asset paths such as `pyxel.load("assets/game.pyxres")` resolve from the script's directory, as under `python game.py`.
 - Use `read_image(..., inline=True)` to look at a sprite region. Render animation frames separately and use `diff_frames` when a pixel comparison is useful.
 - `read_tilemap` reports `zero_tile_used` and `zero_tile_nonempty` separately. Decide whether tile `(0, 0)` is a problem from the game's blank-tile convention.
@@ -37,7 +36,6 @@ Read only the section relevant to the current problem.
 
 - Define verifiable sounds with `pyxel.sounds[N].set(...)`; note strings include octave digits such as `C2D2E2`, and `R` is a rest.
 - Use `read_audio` with a sound or music target. Check notes, duration, and peak; verify runtime cue and channel state separately. Music targets render a fixed 10-second window.
-- Claim sound quality only after listening; otherwise report it as not auditioned.
 
 For example, call `read_audio` with the script and output paths replaced:
 
@@ -48,7 +46,3 @@ For example, call `read_audio` with the script and output paths replaced:
   "output_path": "/absolute/path/sound.wav"
 }
 ```
-
-## Visual truth
-
-State can prove that a transition occurred while the captured frame shows an unreadable or incorrect scene. Mechanics and pixels are separate evidence; check both when both matter.

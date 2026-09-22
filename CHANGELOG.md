@@ -4,7 +4,10 @@
 
 - Enforce the minimum MCP version even with an older installed uv tool
 - Complete MCP registration and restart instructions across install paths
-- Test evidence requirements and documented API calls against a live server
+- Test the bundled server and documented API calls against a live server
+- Replace fixed presentation recipes with task-specific design guidance
+- Consolidate verification and keep broader review coverage conditional
+- Check distribution contracts without freezing prose or document layout
 
 ## 1.4.1
 
