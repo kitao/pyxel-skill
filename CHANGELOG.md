@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.4.3
+
+- Link to the Pyxel website at kitao.dev/pyxel/
+- Update plugin author and marketplace owner links to kitao.dev
+
 ## 1.4.2
 
 - Require pyxel-mcp 1.3.1 for corrected audio note metadata

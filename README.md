@@ -4,9 +4,9 @@
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-spec_compliant-blue)](https://agentskills.io/specification)
 [![License](https://img.shields.io/github/license/kitao/pyxel-skill)](LICENSE)
 
-An [Agent Skill](https://agentskills.io) for building and verifying [Pyxel](https://github.com/kitao/pyxel) games. It guides implementation and verification for the requested game; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools it drives.
+An [Agent Skill](https://agentskills.io) for building and verifying [Pyxel](https://kitao.dev/pyxel/) games. It guides implementation and verification for the requested game; [pyxel-mcp](https://github.com/kitao/pyxel-mcp) supplies the observation tools it drives.
 
-Version 1.4.2 targets pyxel-mcp >= 1.3.1, Pyxel >= 2.9.6, and Python >= 3.11.
+Version 1.4.3 targets pyxel-mcp >= 1.3.1, Pyxel >= 2.9.6, and Python >= 3.11.
 
 ## Install
 
@@ -100,6 +100,7 @@ Content checks cover distribution metadata, local links, and server commands. Re
 
 | pyxel-skill | pyxel-mcp | Pyxel | Python |
 |---|---|---|---|
+| 1.4.3 | >= 1.3.1 | >= 2.9.6 | >= 3.11 |
 | 1.4.2 | >= 1.3.1 | >= 2.9.6 | >= 3.11 |
 | 1.4.1 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |
 | 1.4.0 | >= 1.3.0 | >= 2.9.6 | >= 3.11 |

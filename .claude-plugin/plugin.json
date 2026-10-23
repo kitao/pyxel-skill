@@ -1,11 +1,11 @@
 {
   "name": "pyxel",
   "displayName": "Pyxel",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Build and verify Pyxel retro games: the pyxel skill plus the pyxel-mcp observation server.",
   "author": {
     "name": "Takashi Kitao",
-    "url": "https://github.com/kitao"
+    "url": "https://kitao.dev/"
   },
   "homepage": "https://github.com/kitao/pyxel-skill",
   "repository": "https://github.com/kitao/pyxel-skill",

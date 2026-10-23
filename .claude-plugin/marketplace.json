@@ -2,7 +2,7 @@
   "name": "pyxel-skill",
   "owner": {
     "name": "Takashi Kitao",
-    "url": "https://github.com/kitao"
+    "url": "https://kitao.dev/"
   },
   "metadata": {
     "description": "Pyxel game development for AI agents: the pyxel skill with the pyxel-mcp server."
