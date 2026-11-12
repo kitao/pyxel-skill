@@ -11,7 +11,7 @@
     {
       "name": "pyxel",
       "source": "./",
-      "description": "Build and verify Pyxel retro games: the pyxel skill plus the pyxel-mcp observation server.",
+      "description": "Build and verify Pyxel 2D and Cube 3D games: the pyxel skill plus the pyxel-mcp observation server.",
       "license": "MIT",
       "keywords": [
         "pyxel",

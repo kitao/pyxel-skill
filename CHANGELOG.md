@@ -1,5 +1,12 @@
 # Change Log
 
+## 1.5.0
+
+- Require pyxel-mcp 1.4.0+ and its Pyxel 3.0.1+ runtime
+- Add Pyxel Cube guidance for scenes, cameras, GLB assets, collisions, and observation
+- Document Pyxel 3 migration, palette replacement, and MML inspection limits
+- Verify 2D input, Cube rendering and state, and audio against the published server
+
 ## 1.4.3
 
 - Link to the Pyxel website at kitao.dev/pyxel/

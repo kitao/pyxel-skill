@@ -29,6 +29,7 @@ def test_release_metadata_agrees():
     release = [row for row in rows if row[0] == version]
     assert len(release) == 1, "Current release must have a compatibility row"
     assert release[0][1].replace(" ", "") == skill.metadata["pyxel-mcp"]
+    assert release[0][2].replace(" ", "") == skill.metadata["pyxel"]
     releases = re.findall(r"^## (\S+)", (ROOT / "CHANGELOG.md").read_text(), re.MULTILINE)
     assert releases[0] == version
 

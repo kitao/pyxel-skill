@@ -1,4 +1,4 @@
-"""Exercise the shipped server configuration and documented audio request."""
+"""Exercise the shipped server configuration with Pyxel 3, Cube, and audio."""
 
 from __future__ import annotations
 
@@ -17,14 +17,17 @@ from pathlib import Path
 import pytest
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
+from packaging.specifiers import SpecifierSet
+from skills_ref import read_properties
 
 ROOT = Path(__file__).resolve().parent
 GAME = ROOT / "tests" / "fixtures" / "skill_game.py"
+CUBE_GAME = ROOT / "tests" / "fixtures" / "cube_game.py"
 
 
 @pytest.fixture(scope="module")
 def server_parameters(tmp_path_factory):
-    """A stale installed tool must not override the bundled minimum version."""
+    """A stale server or Pyxel must not override the bundled requirements."""
     sandbox = tmp_path_factory.mktemp("skill-runtime")
     temporary = sandbox / "tmp"
     temporary.mkdir()
@@ -45,7 +48,7 @@ def server_parameters(tmp_path_factory):
     uv = shutil.which("uv")
     assert uv is not None, "Install uv to run the MCP integration tests"
     installation = subprocess.run(
-        [uv, "tool", "install", "pyxel-mcp==1.3.0"],
+        [uv, "tool", "install", "pyxel-mcp==1.3.0", "--with", "pyxel==2.9.6"],
         env=env,
         capture_output=True,
         text=True,
@@ -59,7 +62,8 @@ def server_parameters(tmp_path_factory):
         [
             str(tool_python),
             "-c",
-            "import importlib.metadata; print(importlib.metadata.version('pyxel-mcp'))",
+            "import importlib.metadata as m; "
+            "print(m.version('pyxel-mcp'), m.version('pyxel'))",
         ],
         env=env,
         check=True,
@@ -67,7 +71,7 @@ def server_parameters(tmp_path_factory):
         text=True,
         timeout=15,
     )
-    assert installed.stdout.strip() == "1.3.0"
+    assert installed.stdout.strip() == "1.3.0 2.9.6"
 
     config = json.loads((ROOT / ".mcp.json").read_text())["mcpServers"]["pyxel"]
     return StdioServerParameters(
@@ -103,8 +107,9 @@ async def _call(session, name, arguments):
 def test_bundled_server_runs_seeded_input_and_inline_capture(server_parameters):
     async def exercise(session):
         _, info = await _call(session, "pyxel_info", {})
-        version = tuple(int(part) for part in info["pyxel_mcp_version"].split(".")[:3])
-        assert version >= (1, 3, 1), info
+        requirements = read_properties(ROOT).metadata
+        assert info["pyxel_mcp_version"] in SpecifierSet(requirements["pyxel-mcp"]), info
+        assert info["pyxel_version"] in SpecifierSet(requirements["pyxel"]), info
 
         request = {
             "script": str(GAME),
@@ -153,6 +158,48 @@ def test_bundled_server_runs_seeded_input_and_inline_capture(server_parameters):
             assert image_path.read_bytes() == png
             observations.append((state["values"], png))
         assert observations[0] == observations[1]
+
+    _run(server_parameters, exercise)
+
+
+def test_cube_input_state_and_rendering(server_parameters, tmp_path):
+    async def exercise(session):
+        _, info = await _call(session, "pyxel_info", {})
+        assert Path(info["cube_stubs_path"]).is_file()
+        example = next(e for e in info["examples"] if e["name"] == "cube/c01_hello_cube")
+        source = await session.read_resource(f"pyxel://examples/{example['name']}")
+        assert source.contents[0].text == Path(example["path"]).read_text()
+
+        _, validation = await _call(session, "validate", {"script": str(CUBE_GAME)})
+        assert not any(issue["severity"] == "error" for issue in validation["issues"])
+
+        response, data = await _call(session, "run", {
+            "script": str(CUBE_GAME),
+            "frames": 10,
+            "inputs": [{"frame": 0, "buttons": ["KEY_RIGHT"]}],
+            "until": "box.transform.pos.x >= 4",
+            "snapshots": [
+                {"kind": "state", "frame": "end", "attrs": ["box.transform.pos.x"]},
+                {"kind": "screen_grid", "frame": "end"},
+                {
+                    "kind": "screen_image", "frames": [0, 3], "inline": True,
+                    "output_pattern": str(tmp_path / "cube-{frame}.png"), "scale": 2,
+                },
+            ],
+        })
+        assert data["exit_status"] == "ok", data
+        assert data["until_met"] is True, data
+        assert data["frame_count"] == 4, data
+        state = next(s for s in data["snapshots"] if s["kind"] == "state")
+        assert not state["warnings"], state
+        assert state["values"]["box.transform.pos.x"] == pytest.approx(4), state
+        grid = next(s for s in data["snapshots"] if s["kind"] == "screen_grid")
+        # Camera clears to 1; the box draws in 11. This catches an empty viewport.
+        assert {color for row in grid["grid"] for color in row} == {1, 11}
+        images = [base64.b64decode(item.data) for item in response.content if item.type == "image"]
+        assert len(images) == 2, response.content
+        assert all(struct.unpack(">II", png[16:24]) == (128, 96) for png in images)
+        assert images[0] != images[1], "Moving the Cube node should change its rendered pixels"
 
     _run(server_parameters, exercise)
 
