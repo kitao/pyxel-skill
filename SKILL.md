@@ -1,47 +1,30 @@
 ---
 name: pyxel
-description: Build, debug, and verify 2D and Pyxel Cube 3D games made with Pyxel, the retro game engine for Python. Use whenever a task creates, changes, tests, or reviews a Pyxel game, or asks for a retro Python game that should use Pyxel. Do not use for other engines or general Python work.
+description: Create, debug, and playtest Python games made with Pyxel, including Pyxel Cube 3D. Use for Pyxel gameplay, rendering, controls, sound, and inspecting .pyxres assets.
 license: MIT
-compatibility: Requires Python 3.11+, pyxel-mcp 1.4.0+, and Pyxel 3.0.1+. Use `uvx --from 'pyxel-mcp>=1.4.0' pyxel-mcp` as the server command.
 metadata:
-  version: "1.5.0"
-  pyxel-mcp: ">=1.4.0"
-  pyxel: ">=3.0.1"
+  version: "1.6.0"
+  python: ">=3.11"
+  pyxel-mcp: ">=1.5.0"
+  pyxel: ">=3.0.3"
 ---
 
 # Pyxel
 
-Build or change only what the request needs, preserving the existing game's conventions. Verify the result from observed behavior, with effort proportional to the task.
+**For a new game**, start with the action the player takes and what changes when it succeeds or fails. Build that interaction at the intended screen size, play it, and use the result to tune controls, art, and feedback. See [game design](references/design.md) for new games and polish work.
 
-## Runtime
+**For an existing game**, find its entry point, controls, assets, and target Pyxel version. Reproduce the reported behavior through the normal controls when possible. After the change, replay the same inputs and check the consequence the player can see or hear.
 
-pyxel-mcp provides eight observation tools. They report facts; judging them is your job.
+**For an asset question**, pass the `.pyxres` file directly to the relevant reader. Use the game itself when the question depends on how it draws or plays that asset. See [2D graphics, tilemaps, and sound](references/pyxel.md). For a 3D scene, use the [Cube guide](references/cube.md).
 
-- `validate` reports syntax errors and recognizable Pyxel code patterns without running the script.
-- `run` drives headless frames with scheduled input, stops on `until`, and captures `state`, `screen_image`, `screen_grid`, or `video`. `screen_image` with `inline: true` returns an image.
-- `pyxel_info` reports versions, Pyxel and Cube type stub paths, bundled examples, and resource URIs.
-- `read_palette`, `read_image`, `read_tilemap`, and `read_audio` inspect the palette, image banks, tilemaps, and rendered audio; `read_image` and `read_tilemap` take `inline=true` to return their renders as images.
-- `diff_frames` compares two captured PNGs.
+## Work with the installed runtime
 
-Check both `pyxel_mcp_version` and `pyxel_version` in `pyxel_info`. If tools are missing or either version is below the requirements above, update the plugin or set the client's MCP command to `uvx --from 'pyxel-mcp>=1.4.0' pyxel-mcp`. Append `install` for setup examples; it only prints instructions. Apply the appropriate registration with this versioned command. Avoid duplicate plugin registrations. Restart the client and recheck `pyxel_info`. While blocked, use focused logic tests plus direct headless Pyxel runs, and report weaker visual and interaction verification.
+Use `pyxel_info` to check the server and Pyxel versions and find bundled examples. The bundled command is `uvx --from 'pyxel-mcp>=1.5.0' pyxel-mcp`. It installs Pyxel for the server. Check the game's own dependency before adopting a new API, and verify a pinned project in its own environment.
 
-## Workflow
+For an unfamiliar call, ask `lookup_api` for a symbol such as `Image.set` or `cube.Node`. A partial name returns candidates. Look up a match for its declarations. To read a bundled example, append its name from `pyxel_info` to `pyxel://examples/`. To play it, pass its returned file path to `run` so its assets resolve.
 
-1. Identify the requested behavior and the existing code and assets it affects. For a new game, choose a playable scope with controls, an objective, and any retry or terminal states its rules need. Ask only when a missing choice materially changes the result.
-2. Implement the change. Follow the project's asset conventions; use code-generated or file-based assets as the task requires.
-3. Run `validate` on changed game code. Fix errors and resolve or explain relevant warnings. Exercise the affected behavior with `run`, using scheduled input and a `random_seed` when randomness matters. Check that it reaches the intended stop without crash, timeout, or unexpected stall; read `log` even when `ok` is true.
-4. Check task-specific state predicates for mechanics and directly inspect captured frames for appearance. A new game needs both; a focused edit needs evidence for the behavior it can affect. Use `screen_image` with `inline: true` to see the frame. Check authored audio through `read_audio`, and listen before judging sound quality. Fix observed defects and repeat affected checks; use focused logic tests when they prove rules more directly.
-5. Report changed files, controls when relevant, verification results, and anything unverified. Distinguish observed behavior from visual or listening judgments.
+## Play the change
 
-## References
+Use `validate` for static findings. Use `run` on a trusted entry script to observe the game headlessly. Choose input and a check that could actually fail if the change were broken. Inspect state for a rule, a rendered frame for appearance, and a sequence for timing. For a new game, play through its main interaction and look at the result on screen.
 
-- [references/pyxel.md](references/pyxel.md): Pyxel 3 migration, input, drawing, assets, audio, and determinism. Read for related implementation or diagnosis.
-- [references/cube.md](references/cube.md): Pyxel Cube nodes, cameras, GLB assets, collisions, and 3D verification. Read when the task uses Cube.
-- [references/design.md](references/design.md): presentation and feedback when creating or polishing games.
-- [references/strict-mode.md](references/strict-mode.md): broader coverage and retained evidence for requested release checks, audits, or proof bundles.
-
-## Boundaries
-
-- Do not accept a broken frame because state checks passed.
-- Do not require proof bundles, planning files, or tracking files for ordinary edits. Retain them only when requested or needed for continuity on larger work.
-- Do not substitute placeholder shapes for requested sprite art unless primitive geometry is the intended style.
+If an observation contradicts the intended behavior, fix the cause and replay the affected route. The [playtesting guide](references/playtesting.md) includes a runnable example, input timing, state paths, and ways to diagnose a missed event. If MCP is unavailable, use the project's tests and a bounded headless check supported by its Pyxel version. Report how to launch or reproduce the change, what you observed, and any target or behavior that still needs verification.

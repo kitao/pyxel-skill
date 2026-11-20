@@ -170,6 +170,10 @@ def test_cube_input_state_and_rendering(server_parameters, tmp_path):
         source = await session.read_resource(f"pyxel://examples/{example['name']}")
         assert source.contents[0].text == Path(example["path"]).read_text()
 
+        _, api = await _call(session, "lookup_api", {"name": "cube.Camera"})
+        assert "clear_color" in api["members"]
+        assert api["declarations"]
+
         _, validation = await _call(session, "validate", {"script": str(CUBE_GAME)})
         assert not any(issue["severity"] == "error" for issue in validation["issues"])
 
@@ -204,38 +208,101 @@ def test_cube_input_state_and_rendering(server_parameters, tmp_path):
     _run(server_parameters, exercise)
 
 
-def _audio_examples():
-    reference = (ROOT / "references" / "pyxel.md").read_text()
+def _documented_requests(reference, field):
+    source = (ROOT / "references" / reference).read_text()
     examples = [
         json.loads(block)
-        for block in re.findall(r"```json\s*\n(.*?)\n```", reference, flags=re.DOTALL)
+        for block in re.findall(r"```json\s*\n(.*?)\n```", source, flags=re.DOTALL)
     ]
-    requests = [example for example in examples if "target" in example]
-    assert requests, "Missing executable audio example"
+    requests = [example for example in examples if field in example]
+    assert requests, f"No example with {field} in {reference}"
     return requests
 
 
-@pytest.mark.parametrize("example", _audio_examples())
-def test_documented_audio_request_renders_wav(server_parameters, tmp_path, example):
-    request = example.copy()
-    # Preserve the documented target and all other fields so invalid API names fail.
-    for key in ("script", "output_path"):
-        assert isinstance(request[key], str) and request[key], key
-    request["script"] = str(GAME)
-    request["output_path"] = str(tmp_path / "sound.wav")
+async def _platformer(session):
+    _, info = await _call(session, "pyxel_info", {})
+    return Path(next(e["path"] for e in info["examples"] if e["name"] == "10_platformer"))
 
+
+@pytest.mark.parametrize("example", _documented_requests("playtesting.md", "inputs"))
+def test_documented_platformer_replay(server_parameters, example):
     async def exercise(session):
-        _, data = await _call(session, "read_audio", request)
-        assert [note["note"] for note in data["notes"]] == ["C2", "D2", "E2", "rest"]
-        assert [note["tone"] for note in data["notes"]] == ["t", "p", "t", "p"]
-        assert [note["volume"] for note in data["notes"]] == [1, 7, 1, 7]
-        assert [note["effect"] for note in data["notes"]] == ["n", "h", "q", "n"]
-        assert data["peak_amplitude"] > 0, data
-        assert data["duration_seconds"] > 0, data
-        assert Path(data["path"]) == Path(request["output_path"]).resolve()
+        script = await _platformer(session)
+        assert Path(example["script"]).name == script.name
+        request = {**example, "script": str(script)}
+        response, moving = await _call(session, "run", request)
+        assert moving["exit_status"] == "ok"
+        assert moving["until_met"] is True
+        state = next(s for s in moving["snapshots"] if s["kind"] == "state")
+        assert not state["warnings"]
+        assert state["values"]["__main__.player.x"] >= 16
+        assert any(item.type == "image" for item in response.content)
+
+        _, idle = await _call(session, "run", {**request, "inputs": []})
+        assert idle["exit_status"] == "ok"
+        assert idle["until_met"] is False
+        state = next(s for s in idle["snapshots"] if s["kind"] == "state")
+        assert state["values"]["__main__.player.x"] == 0
+
+    _run(server_parameters, exercise)
+
+
+@pytest.mark.parametrize("example", _documented_requests("pyxel.md", "target"))
+def test_documented_resource_audio_returns_inline_wav(server_parameters, example):
+    async def exercise(session):
+        resource = (await _platformer(session)).parent / "assets" / "platformer.pyxres"
+        assert Path(example["script"]).suffix == resource.suffix
+        response, data = await _call(session, "read_audio", {**example, "script": str(resource)})
+        audio = next(item for item in response.content if item.type == "audio")
+        assert audio.mime_type == "audio/wav"
+        assert base64.b64decode(audio.data, validate=True) == Path(data["path"]).read_bytes()
+        assert data["peak_amplitude"] > 0
+        assert data["duration_seconds"] > 0
         with wave.open(data["path"], "rb") as wav:
             assert wav.getnframes() > 0
             assert wav.getframerate() == data["sample_rate"]
             assert wav.getnchannels() == data["channels"]
+
+    _run(server_parameters, exercise)
+
+
+@pytest.mark.parametrize("example", _documented_requests("pyxel.md", "tilemap"))
+def test_documented_tile_selection_matches_its_source_art(server_parameters, example):
+    async def exercise(session):
+        directory = (await _platformer(session)).parent
+        resource = directory / "assets" / Path(example["script"]).name
+        request = {**example, "script": str(resource)}
+        response, row = await _call(session, "read_tilemap", request)
+        assert any(item.type == "image" for item in response.content)
+        x, y, w, h = request["bbox"]
+        assert row["sampled_region"] == {"x": x, "y": y, "w": w, "h": h}
+        assert len(row["tiles"]) == h
+        assert all(len(line) == w for line in row["tiles"])
+        u, v = row["tiles"][0][0]
+
+        _, cell = await _call(session, "read_tilemap", {**request, "bbox": [x, y, 1, 1]})
+        _, sprite = await _call(session, "read_image", {
+            "script": str(resource), "image": row["imgsrc"],
+            "x": 8 * u, "y": 8 * v, "w": 8, "h": 8, "inline": True,
+        })
+        _, diff = await _call(session, "diff_frames", {
+            "frame_a": cell["rendered"], "frame_b": sprite["rendered"],
+        })
+        assert diff["identical"] is True
+
+    _run(server_parameters, exercise)
+
+
+def test_script_audio_tracker_fields(server_parameters, tmp_path):
+    async def exercise(session):
+        output = tmp_path / "sound.wav"
+        _, data = await _call(session, "read_audio", {
+            "script": str(GAME), "target": {"sound": 0}, "output_path": str(output),
+        })
+        assert Path(data["path"]) == output.resolve()
+        assert [note["note"] for note in data["notes"]] == ["C2", "D2", "E2", "rest"]
+        assert [note["tone"] for note in data["notes"]] == ["t", "p", "t", "p"]
+        assert [note["volume"] for note in data["notes"]] == [1, 7, 1, 7]
+        assert [note["effect"] for note in data["notes"]] == ["n", "h", "q", "n"]
 
     _run(server_parameters, exercise)

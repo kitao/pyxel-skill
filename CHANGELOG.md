@@ -1,5 +1,12 @@
 # Change Log
 
+## 1.6.0
+
+- Target pyxel-mcp 1.5.0+ and Pyxel 3.0.3+ with installed API lookup and direct resource inspection
+- Organize the skill around making a game, reproducing a bug, and inspecting an asset
+- Add a replayable playtest using the bundled platformer, input timing, and module-level state
+- Cover static screens, manual frame loops, tile selections, inline audio, and target-specific checks
+
 ## 1.5.0
 
 - Require pyxel-mcp 1.4.0+ and its Pyxel 3.0.1+ runtime
