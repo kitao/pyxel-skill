@@ -76,6 +76,7 @@ Run `agentskills validate /path/to/skills/pyxel` on an installation named `pyxel
 
 | pyxel-skill | pyxel-mcp | Pyxel | Python |
 |---|---|---|---|
+| 1.6.1 | >= 1.5.0 | >= 3.0.3 | >= 3.11 |
 | 1.6.0 | >= 1.5.0 | >= 3.0.3 | >= 3.11 |
 | 1.5.0 | >= 1.4.0 | >= 3.0.1 | >= 3.11 |
 | 1.4.3 | >= 1.3.1 | >= 2.9.6 | >= 3.11 |

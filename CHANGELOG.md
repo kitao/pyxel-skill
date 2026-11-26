@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.6.1
+
+- Use Pyxel's standard 16 colors by default for new artwork and review small sprites and scenery at their in-game size
+- Check sprite proportions, outlines, and animation poses in the scene and at game speed
+- Expand Cube guidance for GLB export, motion playback, and the optional one-pixel model outline in Pyxel 3.0.4+
+
 ## 1.6.0
 
 - Target pyxel-mcp 1.5.0+ and Pyxel 3.0.3+ with installed API lookup and direct resource inspection

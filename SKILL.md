@@ -1,9 +1,9 @@
 ---
 name: pyxel
-description: Create, debug, and playtest Python games made with Pyxel, including Pyxel Cube 3D. Use for Pyxel gameplay, rendering, controls, sound, and inspecting .pyxres assets.
+description: Create, debug, and playtest Python games made with Pyxel, including Pyxel Cube 3D. Use for Pyxel gameplay, rendering, controls, sound, .pyxres assets, and GLB models and motions in Cube.
 license: MIT
 metadata:
-  version: "1.6.0"
+  version: "1.6.1"
   python: ">=3.11"
   pyxel-mcp: ">=1.5.0"
   pyxel: ">=3.0.3"
@@ -11,11 +11,13 @@ metadata:
 
 # Pyxel
 
-**For a new game**, start with the action the player takes and what changes when it succeeds or fails. Build that interaction at the intended screen size, play it, and use the result to tune controls, art, and feedback. See [game design](references/design.md) for new games and polish work.
+**For a new game**, start with the action the player takes and what changes when it succeeds or fails. Build that interaction at the intended screen size, play it, and use the result to tune controls, art, and feedback. See [game design](references/design.md) for new games and polish work. For a 3D game, use the [Pyxel Cube guide](references/cube.md) to build the scene and camera.
 
 **For an existing game**, find its entry point, controls, assets, and target Pyxel version. Reproduce the reported behavior through the normal controls when possible. After the change, replay the same inputs and check the consequence the player can see or hear.
 
-**For an asset question**, pass the `.pyxres` file directly to the relevant reader. Use the game itself when the question depends on how it draws or plays that asset. See [2D graphics, tilemaps, and sound](references/pyxel.md). For a 3D scene, use the [Cube guide](references/cube.md).
+**For an asset question**, inspect a [`.pyxres` resource](references/pyxel.md) directly with the relevant reader. For a [GLB model or motion](references/cube.md#import-a-model-and-play-its-motions), use Cube. Use the game itself when the question depends on how it draws or plays the asset.
+
+Use Pyxel's standard 16 colors for new artwork unless the user requests a custom palette or the project already defines one. When creating [2D pixel art](references/design.md#draw-for-decisions), draw the sprites or scenery as assets you can inspect on their own. Check how they read together in the game.
 
 ## Work with the installed runtime
 

@@ -1,7 +1,7 @@
 {
   "name": "pyxel",
   "displayName": "Pyxel",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Create and playtest Pyxel 2D and Cube 3D games, inspect assets, and look up the installed API with pyxel-mcp.",
   "author": {
     "name": "Takashi Kitao",
